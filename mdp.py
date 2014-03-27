@@ -7,6 +7,7 @@ dictionary of {state:number} pairs.  We then define the value_iteration
 and policy_iteration algorithms."""
 
 from utils import *
+from random import *
 
 class MDP:
     """A Markov Decision Process, defined by an initial state, transition model,
@@ -17,15 +18,15 @@ class MDP:
     pairs.  We also keep track of the possible states, terminal states, and 
     actions for each state. [page 615]"""
 
-    def __init__(self, init, actlist, terminals, gamma=.9): 
-        update(self, init=init, actlist=actlist, terminals=terminals, 
+    def __init__(self, init, actlist, terminals, gamma=.9):
+        update(self, init=init, actlist=actlist, terminals=terminals,
                gamma=gamma, states=set(), reward={})
 
-    def R(self, state): 
+    def R(self, state):
         "Return a numeric reward for this state."
         return self.reward[state]
 
-    def T(state, action): 
+    def T(state, action):
         """Transition model.  From a state and an action, return a list
         of (result-state, probability) pairs."""
         return NotImplemented
@@ -39,14 +40,14 @@ class MDP:
         else:
             return self.actlist
 
-class GridMDP(MDP):  
+class GridMDP(MDP):
     """A two-dimensional grid MDP, as in [Figure 17.1].  All you have to do is 
     specify the grid as a list of lists of rewards; use None for an obstacle
     (unreachable state).  Also, you should specify the terminal states.
     An action is an (x, y) unit vector; e.g. (1, 0) means move east."""
     def __init__(self, grid, terminals, init=(0, 0), gamma=.9):
         grid.reverse() ## because we want row 0 on bottom, not on top
-        MDP.__init__(self, init, actlist=orientations, 
+        MDP.__init__(self, init, actlist=orientations,
                      terminals=terminals, gamma=gamma)
         update(self, grid=grid, rows=len(grid), cols=len(grid[0]))
         for x in range(self.cols):
@@ -54,6 +55,12 @@ class GridMDP(MDP):
                 self.reward[x, y] = grid[y][x]
                 if grid[y][x] is not None:
                     self.states.add((x, y))
+
+    def modify_rewards_randomly(self, epsilon): #epsilon is the magnitude of random change
+        for x in range(self.cols):
+            for y in range(self.rows):
+                self.reward[x, y] = self.reward[x, y] + uniform(-1,1)*epsilon
+
 
     def T(self, state, action):
         if action == None:
@@ -70,8 +77,8 @@ class GridMDP(MDP):
 
     def to_grid(self, mapping):
         """Convert a mapping from (x, y) to v into a [[..., v, ...]] grid."""
-        return list(reversed([[mapping.get((x,y), None) 
-                               for x in range(self.cols)] 
+        return list(reversed([[mapping.get((x,y), None)
+                               for x in range(self.cols)]
                               for y in range(self.rows)]))
 
     def to_arrows(self, policy):
@@ -82,8 +89,14 @@ class GridMDP(MDP):
 
 Fig[17,1] = GridMDP([[-0.04, -0.04, -0.04, +1],
                      [-0.04, None,  -0.04, -1],
-                     [-0.04, -0.04, -0.04, -0.04]], 
+                     [-0.04, -0.04, -0.04, -0.04]],
                     terminals=[(3, 2), (3, 1)])
+
+Test = GridMDP([[-0.04, -0.04, -0.04, +1],
+                [-0.04, -0.04,  -0.04, -0.04],
+                [-0.04, -0.04, -0.04, -0.04],
+                [-0.04, -0.04, -0.04, -0.04]],
+               terminals=[(3, 3)])
 
 #______________________________________________________________________________
 
@@ -92,14 +105,14 @@ def value_iteration(mdp, epsilon=0.001):
     U1 = dict([(s, 0) for s in mdp.states])
     R, T, gamma = mdp.R, mdp.T, mdp.gamma
     while True:
-        U = U1.copy() 
+        U = U1.copy()
         delta = 0
         for s in mdp.states:
             U1[s] = R(s) + gamma * max([sum([p * U[s1] for (p, s1) in T(s, a)])
                                         for a in mdp.actions(s)])
             delta = max(delta, abs(U1[s] - U[s]))
         if delta < epsilon * (1 - gamma) / gamma:
-             return U
+            return U
 
 def best_policy(mdp, U):
     """Given an MDP and a utility function U, determine the best policy,
@@ -118,7 +131,7 @@ def expected_utility(a, s, U, mdp):
 def policy_iteration(mdp):
     "Solve an MDP by policy iteration [Fig. 17.7]"
     U = dict([(s, 0) for s in mdp.states])
-    pi = dict([(s, random.choice(mdp.actions(s))) for s in mdp.states])
+    pi = dict([(s, choice(mdp.actions(s))) for s in mdp.states])
     while True:
         U = policy_evaluation(pi, U, mdp)
         unchanged = True
