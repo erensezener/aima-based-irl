@@ -56,19 +56,41 @@ class GridMDP(MDP):
                 if grid[y][x] is not None:
                     self.states.add((x, y))
 
+
+
+    def print_rewards(self):
+        for x in reversed(range(self.cols)):
+            for y in range(self.rows):
+                print("%.2f" % round(self.reward[x, y],2)),
+            print(" ")
+
+
+
     def modify_rewards_randomly(self, epsilon): #epsilon is the magnitude of random change
+        sum = 0
         for x in range(self.cols):
             for y in range(self.rows):
-                self.reward[x, y] = self.reward[x, y] + uniform(-1,1)*epsilon
+                self.reward[x, y] *= 1 + gauss(0,0.5)
+                sum += self.reward[x, y]
+        k = 1 / sum
+        for x in range(self.cols): #does normalization here
+            for y in range(self.rows):
+                self.reward[x, y] *= k
 
+    #
+    # def T(self, state, action):
+    #     if action == None:
+    #         return [(0.0, state)]
+    #     else:
+    #         return [(0.8, self.go(state, action)),
+    #                 (0.1, self.go(state, turn_right(action))),
+    #                 (0.1, self.go(state, turn_left(action)))]
 
     def T(self, state, action):
         if action == None:
             return [(0.0, state)]
         else:
-            return [(0.8, self.go(state, action)),
-                    (0.1, self.go(state, turn_right(action))),
-                    (0.1, self.go(state, turn_left(action)))]
+            return [(1.0, self.go(state, action))]
 
     def go(self, state, direction):
         "Return the state that results from going in this direction."
