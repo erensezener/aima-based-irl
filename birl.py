@@ -2,7 +2,7 @@ __author__ = 'erensezener'
 
 from mdp import *
 from utils import *
-from copy import copy
+from copy import deepcopy
 import math
 import random
 
@@ -12,14 +12,15 @@ import random
 def run_birl():
     iteration_limit = 1
 
-    expert_mdp = GridMDP([[-0.04, -0.04, -0.04, +1],
-                          [-0.04, -0.04,  -0.04, -0.04],
-                          [-0.04, -0.04, -0.04, -0.04],
-                          [-0.04, -0.04, -0.04, -0.04]],
+    expert_mdp = GridMDP([[-0.0, -0.0, -0.0, +1],
+                          [-0.0, -0.0,  -0.0, 0],
+                          [-0.0, -0.0, 0, 0],
+                          [-0.0, -0.0, 0, 0]],
                          terminals=[(3, 3)])
     # expert_pi = policy_iteration(expert_mdp)
     expert_pi = best_policy(expert_mdp, value_iteration(expert_mdp, 0.1))
-    # print_table(expert_mdp.to_arrows(expert_pi))
+    print "Expert pi:"
+    print_table(expert_mdp.to_arrows(expert_pi))
     # print "vs"
     # print_table(expert_mdp.to_arrows(expert_pi2))
     # return None
@@ -48,7 +49,7 @@ def run_birl():
 
 
 
-def iterate_birl(expert_pi, iteration_limit = 2000, epsilon = 0.2):
+def iterate_birl(expert_pi, iteration_limit = 100000, epsilon = 0.2):
     mdp = create_similar_rewards()
     U = value_iteration(mdp)
     pi = best_policy(mdp, U)
@@ -56,11 +57,12 @@ def iterate_birl(expert_pi, iteration_limit = 2000, epsilon = 0.2):
     number_of_updates = 0
 
     for iter in range(iteration_limit):
-        new_mdp = copy(mdp) #creates a new reward function that is very similar to the original one
+        new_mdp = deepcopy(mdp) #creates a new reward function that is very similar to the original one
         new_mdp.modify_rewards_randomly(epsilon)
-        new_U = value_iteration(mdp)
+        new_U = value_iteration(new_mdp)
         new_pi = best_policy(new_mdp, new_U)
-        print_table(new_mdp.to_arrows(new_pi))
+        # print "Current pi:"
+        # print_table(new_mdp.to_arrows(new_pi))
 
 
         posterior = calculate_posterior(mdp, pi, U, expert_pi)

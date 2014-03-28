@@ -61,9 +61,14 @@ class GridMDP(MDP):
 
 
     def print_rewards(self):
+        sum = 0
+        for x in range(self.cols):
+            for y in range(self.rows):
+                sum += abs(self.reward[x, y])
+
         for x in reversed(range(self.cols)):
             for y in range(self.rows):
-                print("%.2f" % round(self.reward[x, y],2)),
+                print("%.2f" % round(self.reward[x, y]/sum,2)),
             print(" ")
 
 
@@ -84,7 +89,18 @@ class GridMDP(MDP):
         x_to_change = randint(0, self.cols-1)
         y_to_change = randint(0, self.rows-1)
         direction = randint(0,1) * 2 -1
+        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
         self.reward[x_to_change, y_to_change] += direction*step
+        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
+
+        sum = 0
+        for x in range(self.cols):
+            for y in range(self.rows):
+                sum += self.reward[x, y]
+        k = 1 / (sum + 0.0000001) # a hack to prevent div by zero
+        for x in range(self.cols): #does normalization here
+            for y in range(self.rows):
+                self.reward[x, y] *= k
 
 
 
