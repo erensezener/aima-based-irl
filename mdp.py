@@ -8,6 +8,8 @@ and policy_iteration algorithms."""
 
 from utils import *
 from random import *
+import math
+import sys
 
 class MDP:
     """A Markov Decision Process, defined by an initial state, transition model,
@@ -65,19 +67,27 @@ class GridMDP(MDP):
             print(" ")
 
 
+    # def modify_rewards_randomly(self, stdev = 0.5): #epsilon is the magnitude of random change
+    #     sum = 0
+    #     for x in range(self.cols):
+    #         for y in range(self.rows):
+    #             self.reward[x, y] *= 1 + gauss(0,stdev)
+    #             sum += self.reward[x, y]
+    #     k = 1 / sum
+    #     for x in range(self.cols): #does normalization here
+    #         for y in range(self.rows):
+    #             self.reward[x, y] *= k
 
-    def modify_rewards_randomly(self, epsilon): #epsilon is the magnitude of random change
-        sum = 0
-        for x in range(self.cols):
-            for y in range(self.rows):
-                self.reward[x, y] *= 1 + gauss(0,0.5)
-                sum += self.reward[x, y]
-        k = 1 / sum
-        for x in range(self.cols): #does normalization here
-            for y in range(self.rows):
-                self.reward[x, y] *= k
 
-    #
+    def modify_rewards_randomly(self, stdev = 0.5): #epsilon is the magnitude of random change
+        step = 0.05
+        x_to_change = randint(0, self.cols-1)
+        y_to_change = randint(0, self.rows-1)
+        direction = randint(0,1) * 2 -1
+        self.reward[x_to_change, y_to_change] += direction*step
+
+
+
     # def T(self, state, action):
     #     if action == None:
     #         return [(0.0, state)]
@@ -119,6 +129,25 @@ Test = GridMDP([[-0.04, -0.04, -0.04, +1],
                 [-0.04, -0.04, -0.04, -0.04],
                 [-0.04, -0.04, -0.04, -0.04]],
                terminals=[(3, 3)])
+
+#______________________________________________________________________________
+
+def calculate_posterior(mdp, pi, U, expert_pi): #TODO add priors
+    return math.exp(min(calculate_qsum(mdp, pi, U, expert_pi), 709)) #exp(710) causes overflow
+
+def calculate_conditional(mdp, pi, U, expert_pi):
+    return math.exp(calculate_qsum(mdp, pi, U, expert_pi))
+
+def calculate_qsum(mdp, pi, U, expert_pi):
+    qsum = 0
+    for s in mdp.states:
+        qsum += calculate_q(s, expert_pi[s], mdp, U)
+    return qsum
+
+def calculate_q(s, a, mdp, U):
+    R, T, gamma = mdp.R, mdp.T, mdp.gamma
+    Q = R(s) + gamma * sum([p * U[s1] for (p, s1) in T(s, a)])
+    return Q
 
 #______________________________________________________________________________
 
