@@ -57,6 +57,7 @@ class GridMDP(MDP):
                 self.reward[x, y] = grid[y][x]
                 if grid[y][x] is not None:
                     self.states.add((x, y))
+        self.normalize_rewards()
 
 
 
@@ -66,9 +67,10 @@ class GridMDP(MDP):
             for y in range(self.rows):
                 sum += abs(self.reward[x, y])
 
-        for x in reversed(range(self.cols)):
-            for y in range(self.rows):
+        for x in (range(self.cols)):
+            for y in (range(self.rows)):
                 print("%.2f" % round(self.reward[x, y]/sum,2)),
+                # print("%.2f" % round(self.reward[x, y],2)),
             print(" ")
 
 
@@ -84,23 +86,39 @@ class GridMDP(MDP):
     #             self.reward[x, y] *= k
 
 
-    def modify_rewards_randomly(self, stdev = 0.5): #epsilon is the magnitude of random change
-        step = 0.05
+    def modify_rewards_randomly(self, step = 0.05): #epsilon is the magnitude of random change
         x_to_change = randint(0, self.cols-1)
         y_to_change = randint(0, self.rows-1)
         direction = randint(0,1) * 2 -1
         # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
         self.reward[x_to_change, y_to_change] += direction*step
         # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
+        self.normalize_rewards()
 
+
+
+    # normalizes the reward vector such that sum(R_i) = C and sum(|R_i|) = D
+    def normalize_rewards(self, C = 1, D = 1):
         sum = 0
+        abs_sum = 0
         for x in range(self.cols):
             for y in range(self.rows):
-                sum += self.reward[x, y]
-        k = 1 / (sum + 0.0000001) # a hack to prevent div by zero
+                if self.reward[x, y] != None:
+                    sum += self.reward[x, y] #TODO handle None values here
+                # abs_sum += abs(self.reward[x, y])
+
+        # sum(R_i) = C normalization is done here
+        k = C / (sum + 0.0000001) # a hack to prevent div by zero
         for x in range(self.cols): #does normalization here
             for y in range(self.rows):
                 self.reward[x, y] *= k
+        #         abs_sum += abs(self.reward[x, y])
+
+        # sum(|R_i|) = D normalization is done here
+        # abs_k = D / (abs_sum + 0.0000001)
+        # for x in range(self.cols): #does normalization here
+        #     for y in range(self.rows):
+        #         self.reward[x, y] *= abs_k
 
 
 
@@ -135,24 +153,36 @@ class GridMDP(MDP):
 
 #______________________________________________________________________________
 
-Fig[17,1] = GridMDP([[-0.04, -0.04, -0.04, +1],
-                     [-0.04, None,  -0.04, -1],
-                     [-0.04, -0.04, -0.04, -0.04]],
-                    terminals=[(3, 2), (3, 1)])
 
-Test = GridMDP([[-0.04, -0.04, -0.04, +1],
-                [-0.04, -0.04,  -0.04, -0.04],
-                [-0.04, -0.04, -0.04, -0.04],
-                [-0.04, -0.04, -0.04, -0.04]],
-               terminals=[(3, 3)])
+# Fig[17,1] = GridMDP([[-0.04, -0.04, -0.04, +1],
+#                      [-0.04, None,  -0.04, -1],
+#                      [-0.04, -0.04, -0.04, -0.04]],
+#                     terminals=[(3, 2), (3, 1)])
+
+# Test = GridMDP([[-0.04, -0.04, -0.04, +1],
+#                 [-0.04, -0.04,  -0.04, -0.04],
+#                 [-0.04, -0.04, -0.04, -0.04],
+#                 [-0.04, -0.04, -0.04, -0.04]],
+#                terminals=[(3, 3)])
 
 #______________________________________________________________________________
 
 def calculate_posterior(mdp, pi, U, expert_pi): #TODO add priors
-    return math.exp(min(calculate_qsum(mdp, pi, U, expert_pi), 709)) #exp(710) causes overflow
+    return calculate_conditional(mdp, pi, U, expert_pi) * calculate_cumulative_prior(mdp)
+
+def calculate_cumulative_prior(mdp):
+    product = 1
+    for s in mdp.states:
+        product *= calculate_prior(mdp.R(s))
+    return product
+
+def calculate_prior(R, Rmax = 1.0001):
+    R = abs(R)
+    # return 1/ (((R/Rmax)**0.5) * ((1 - R/Rmax)**0.5))
+    return 1
 
 def calculate_conditional(mdp, pi, U, expert_pi):
-    return math.exp(calculate_qsum(mdp, pi, U, expert_pi))
+    return math.exp(min(calculate_qsum(mdp, pi, U, expert_pi), 709)) #exp(710) causes overflow
 
 def calculate_qsum(mdp, pi, U, expert_pi):
     qsum = 0

@@ -1,9 +1,19 @@
-__author__ = 'erensezener'
+__author__ = 'Eren Sezener'
+__maintainer__ = 'Eren Sezener'
+__email__ = "erensezener@gmail.com"
+
+"""
+This module finds the reward function via Bayesian Inverse Reinforcement Learning.
+See "Bayesian Inverse Reinforcement Learning" by Deepak Ramachandran and Eyal Amir (2007) for algorithm details.
+
+This module is compatible with Python 2.7.5.
+
+"""
+
 
 from mdp import *
 from utils import *
 from copy import deepcopy
-import math
 import random
 
 
@@ -12,18 +22,23 @@ import random
 def run_birl():
     iteration_limit = 1
 
-    expert_mdp = GridMDP([[-0.0, -0.0, -0.0, +1],
-                          [-0.0, -0.0,  -0.0, 0],
-                          [-0.0, -0.0, 0, 0],
-                          [-0.0, -0.0, 0, 0]],
-                         terminals=[(3, 3)])
-    # expert_pi = policy_iteration(expert_mdp)
+    # expert_mdp = GridMDP([[1, 0, 0, 2],
+    #                       [-0.4, -0.4, -0.4, -0.4],
+    #                       [-0.4, -0.4, -0.4, -0.4],
+    #                       [-0.4, -0.4, -0.4, -0.4]],
+    #                      terminals=[(3, 3)])
+
+    expert_mdp = GridMDP([[0, 0, 0, 10],
+                [0, 0, 0, 0],
+                [0, 0, -1, -1],
+                [0, 0, -1, -1]],
+               terminals=[(3, 3)])
+
+    expert_mdp.print_rewards()
     expert_pi = best_policy(expert_mdp, value_iteration(expert_mdp, 0.1))
     print "Expert pi:"
     print_table(expert_mdp.to_arrows(expert_pi))
-    # print "vs"
-    # print_table(expert_mdp.to_arrows(expert_pi2))
-    # return None
+
 
     best_difference = 16
     best_pi = None
@@ -49,21 +64,17 @@ def run_birl():
 
 
 
-def iterate_birl(expert_pi, iteration_limit = 100000, epsilon = 0.2):
+def iterate_birl(expert_pi, iteration_limit = 5000, step_size = 0.2):
+    # mdp = create_random_rewards()
     mdp = create_similar_rewards()
     U = value_iteration(mdp)
     pi = best_policy(mdp, U)
 
-    number_of_updates = 0
-
     for iter in range(iteration_limit):
         new_mdp = deepcopy(mdp) #creates a new reward function that is very similar to the original one
-        new_mdp.modify_rewards_randomly(epsilon)
+        new_mdp.modify_rewards_randomly(step_size)
         new_U = value_iteration(new_mdp)
         new_pi = best_policy(new_mdp, new_U)
-        # print "Current pi:"
-        # print_table(new_mdp.to_arrows(new_pi))
-
 
         posterior = calculate_posterior(mdp, pi, U, expert_pi)
         new_posterior = calculate_posterior(new_mdp, new_pi, new_U, expert_pi)
@@ -72,9 +83,7 @@ def iterate_birl(expert_pi, iteration_limit = 100000, epsilon = 0.2):
             mdp = new_mdp
             pi = new_pi
             U = new_U
-            number_of_updates +=1
 
-    print("Number of updates" + str(number_of_updates))
     return pi, mdp, get_difference(pi, expert_pi)
 
 def get_difference(new_pi, ex_pi):
@@ -90,7 +99,7 @@ def create_similar_rewards():
                          terminals=[(3, 3)])
 
 def create_random_rewards():
-    return GridMDP([[random.uniform(-1,1) for i in range(4)] for j in range(4)] #create 4-by-4 matrix with random doubles
+    return GridMDP([[random.uniform(-1,1) for _ in range(4)] for _ in range(4)] #create 4-by-4 matrix with random doubles
                    ,terminals=[(3, 3)])
 
 
