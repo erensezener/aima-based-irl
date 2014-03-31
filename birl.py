@@ -17,8 +17,6 @@ from copy import deepcopy
 import random
 
 
-
-
 def run_birl():
     iteration_limit = 1
 
@@ -30,8 +28,8 @@ def run_birl():
 
     expert_mdp = GridMDP([[0, 0, 0, 10],
                 [0, 0, 0, 0],
-                [0, 0, -1, -1],
-                [0, 0, -1, -1]],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0]],
                terminals=[(3, 3)])
 
     expert_mdp.print_rewards()
@@ -39,24 +37,18 @@ def run_birl():
     print "Expert pi:"
     print_table(expert_mdp.to_arrows(expert_pi))
 
-
-    best_difference = 16
-    best_pi = None
-    best_mdp = None
+    errors = []
 
     for i in range(iteration_limit):
-        pi, mdp, diff = iterate_birl(expert_pi)
-        if get_difference(pi, expert_pi) < best_difference:
-            best_difference = get_difference(pi, expert_pi)
-            best_pi = pi
-            best_mdp = mdp
-            print("Difference is " + str(get_difference(best_pi, expert_pi)))
+        pi, mdp, diff = iterate_birl(expert_pi, expert_mdp)
+        errors.append(calculate_sse(mdp, expert_mdp))
 
 
-    print_table(best_mdp.to_arrows(best_pi))
-    print "vs"
-    print_table(expert_mdp.to_arrows(expert_pi))
-    print("Difference is " + str(get_difference(best_pi, expert_pi)))
+
+    # print_table(best_mdp.to_arrows(best_pi))
+    # print "vs"
+    # print_table(expert_mdp.to_arrows(expert_pi))
+    # print("Difference is " + str(get_difference(best_pi, expert_pi)))
     mdp.print_rewards()
     print "vs"
     expert_mdp.print_rewards()
@@ -64,25 +56,34 @@ def run_birl():
 
 
 
-def iterate_birl(expert_pi, iteration_limit = 5000, step_size = 0.2):
-    # mdp = create_random_rewards()
-    mdp = create_similar_rewards()
+def iterate_birl(expert_pi, expert_mdp, iteration_limit = 3000, step_size = 0.3):
+    mdp = create_random_rewards()
     U = value_iteration(mdp)
     pi = best_policy(mdp, U)
 
     for iter in range(iteration_limit):
         new_mdp = deepcopy(mdp) #creates a new reward function that is very similar to the original one
         new_mdp.modify_rewards_randomly(step_size)
-        new_U = value_iteration(new_mdp)
-        new_pi = best_policy(new_mdp, new_U)
+        # new_U = value_iteration(new_mdp)
+        # new_pi = best_policy(new_mdp, new_U)
+        new_U = policy_evaluation(pi, U, new_mdp)
 
-        posterior = calculate_posterior(mdp, pi, U, expert_pi)
-        new_posterior = calculate_posterior(new_mdp, new_pi, new_U, expert_pi)
+        if pi != best_policy(new_mdp, new_U):
+            new_pi = policy_iteration(new_mdp)
+            posterior = calculate_posterior(mdp, U, expert_pi, calculate_beta_priors)
+            new_posterior = calculate_posterior(new_mdp, new_U, expert_pi, calculate_beta_priors)
 
-        if random.uniform(0, 1) < min(1, new_posterior / posterior): # with min{1, P(R',pi') / P(R,pi)}
-            mdp = new_mdp
-            pi = new_pi
-            U = new_U
+            if probability(min(1, new_posterior / posterior)): # with min{1, P(R',pi') / P(R,pi)}
+                mdp, pi, U = new_mdp, new_pi, new_U
+        else:
+            posterior = calculate_posterior(mdp, U, expert_pi, uniform_prior)
+            new_posterior = calculate_posterior(new_mdp, new_U, expert_pi, uniform_prior)
+
+            if probability(min(1, new_posterior / posterior)): # with min{1, P(R',pi) / P(R,pi)}
+                mdp, U = new_mdp, new_U
+
+        print("Difference is " + str(get_difference(pi, expert_pi)))
+        print str(calculate_sse(mdp, expert_mdp))
 
     return pi, mdp, get_difference(pi, expert_pi)
 
