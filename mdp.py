@@ -9,6 +9,7 @@ and policy_iteration algorithms."""
 from utils import *
 from random import *
 import math
+from scipy.misc import logsumexp
 
 
 class MDP:
@@ -19,8 +20,6 @@ class MDP:
     state/action/state triplet, we instead have T(s, a) return a list of (p, s')
     pairs.  We also keep track of the possible states, terminal states, and 
     actions for each state. [page 615]"""
-
-    eps = 0.000000001
 
     def __init__(self, init, actlist, terminals, gamma=.9):
         update(self, init=init, actlist=actlist, terminals=terminals,
@@ -61,7 +60,7 @@ class GridMDP(MDP):
                 self.reward[x, y] = grid[y][x]
                 if grid[y][x] is not None:
                     self.states.add((x, y))
-        self.normalize_rewards()
+        self.scale_true_reward()
 
 
     def print_rewards(self):
@@ -89,25 +88,52 @@ class GridMDP(MDP):
     #             self.reward[x, y] *= k
 
 
-    def modify_rewards_randomly(self, step=0.05):
+    def modify_rewards_randomly(self, step=0.05, r_max = 10, r_min = -10):
         x_to_change = randint(0, self.cols - 1)
         y_to_change = randint(0, self.rows - 1)
         direction = randint(0, 1) * 2 - 1
-        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
-        self.reward[x_to_change, y_to_change] += direction * step
-        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
-        self.normalize_rewards()
+        print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
+        if (r_min < self.reward[x_to_change, y_to_change] + direction * step < r_max):
+            self.reward[x_to_change, y_to_change] += direction * step
+            print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
+
+    def get_max_reward(self): return max(self.reward.values())
+
+    def get_min_reward(self): return min(self.reward.values())
+
+    def scale_true_reward(self, R_min = -10, R_max = 10):
+    # scales the true reward functions so we have a better measure of reward
+    # loss
+        for key in self.reward:
+            self.reward[key] /= max(self.get_max_reward(), abs(self.get_min_reward()))
+
+        diff = [BIG_NUMBER, BIG_NUMBER]
+        # if any(true_reward < 0):
+        diff[0] = R_min / (self.get_min_reward() - SMALL_NUMBER)
+
+        # if any(true_reward > 0):
+        diff[1] = R_max / (self.get_max_reward() + SMALL_NUMBER)
 
 
-    def normalize_rewards(self, Rmax=10):
-        sum = 0
-        for x in range(self.cols):
-            for y in range(self.rows):
-                if self.reward[x, y] != None:
-                    sum += self.reward[x, y]
-        for x in range(self.cols):
-            for y in range(self.rows):
-                    self.reward[x, y] /= sum
+        # assert(all(diff>0))
+
+        for key in self.reward:
+            self.reward[key] *= min(diff)
+
+        print
+        # assert( all(true_reward >= R_min) )
+        # assert( all(true_reward <= R_max) )
+
+
+    # def normalize_rewards(self, Rmax=10):
+    #     sum = 0
+    #     for x in range(self.cols):
+    #         for y in range(self.rows):
+    #             if self.reward[x, y] != None:
+    #                 sum += self.reward[x, y]
+    #     for x in range(self.cols):
+    #         for y in range(self.rows):
+    #                 self.reward[x, y] /= sum
 
     #
     def normalize_rewards(self, Rmax=10):
@@ -219,8 +245,19 @@ def calculate_sse_error_sum(rewards1, rewards2):
 
 #______________________________________________________________________________
 
-def calculate_posterior(mdp, U, expert_pi, prior_function):  #TODO add priors
-    return calculate_conditional(mdp, U, expert_pi) * calculate_cumulative_prior(mdp, prior_function)
+def calculate_posterior(mdp, Q, expert_pi, prior_function, alpha = 0.99):  #TODO add priors
+    Z = []
+    E = 0
+    for s in mdp.states:
+        for a in mdp.actions(s):
+            Z.append(alpha * Q[s, a])
+        E += alpha * Q[s, expert_pi[s]] - logsumexp(Z)
+        del Z[:] #Remove contents of Z
+    # return E * calculate_cumulative_prior(mdp, prior_function)
+    return E
+
+# def calculate_posterior(mdp, U, expert_pi, prior_function):  #TODO add priors
+#     return calculate_conditional(mdp, U, expert_pi) * calculate_cumulative_prior(mdp, prior_function)
 
 
 def calculate_conditional(mdp, U, expert_pi):
@@ -256,6 +293,14 @@ def calculate_beta_priors(R, Rmax=10):
 def uniform_prior(_): return 1
 
 
+def get_q_values(mdp, U):
+    Q = {}
+    for s in mdp.states:
+        for a in mdp.actions(s):
+            for (p, sp) in mdp.T(s, a):
+                Q[s, a] = mdp.reward[s] + mdp.gamma * p * U[sp]
+    return Q
+
 #______________________________________________________________________________
 
 def value_iteration(mdp, epsilon=0.001):
@@ -271,7 +316,6 @@ def value_iteration(mdp, epsilon=0.001):
             delta = max(delta, abs(U1[s] - U[s]))
         if delta < epsilon * (1 - gamma) / gamma:
             return U
-
 
 
 def best_policy(mdp, U):

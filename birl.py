@@ -15,6 +15,7 @@ from mdp import *
 from utils import *
 from copy import deepcopy
 import random
+from math import exp
 
 
 def run_birl():
@@ -52,40 +53,59 @@ def run_birl():
     mdp.print_rewards()
     print "vs"
     expert_mdp.print_rewards()
+    print(str(max(errors)))
 
 
 
 
-def iterate_birl(expert_pi, expert_mdp, iteration_limit = 3000, step_size = 0.3):
+def iterate_birl(expert_pi, expert_mdp, iteration_limit = 1000, step_size = 0.5):
     mdp = create_random_rewards()
     U = value_iteration(mdp)
     pi = best_policy(mdp, U)
+    Q = get_q_values(mdp, U)
+
+    min_error = 2**10
+    min_mdp = None
 
     for iter in range(iteration_limit):
         new_mdp = deepcopy(mdp) #creates a new reward function that is very similar to the original one
         new_mdp.modify_rewards_randomly(step_size)
         # new_U = value_iteration(new_mdp)
         # new_pi = best_policy(new_mdp, new_U)
-        new_U = policy_evaluation(pi, U, new_mdp)
+        # new_U = policy_evaluation(pi, U, new_mdp)
+        # new_Q = get_q_values(new_mdp, new_U)
+        # new_pi = best_policy(new_mdp, new_U)
 
-        if pi != best_policy(new_mdp, new_U):
-            new_pi = policy_iteration(new_mdp)
-            posterior = calculate_posterior(mdp, U, expert_pi, calculate_beta_priors)
-            new_posterior = calculate_posterior(new_mdp, new_U, expert_pi, calculate_beta_priors)
+        if True:
+        # if new_pi != best_policy(new_mdp, new_U):
+            new_U = value_iteration(new_mdp)
+            # new_pi = policy_iteration(new_mdp)
+            # new_U = policy_evaluation(new_pi, new_U, new_mdp)
+            new_pi = best_policy(new_mdp, new_U)
+            new_Q = get_q_values(new_mdp, new_U)
+            posterior = calculate_posterior(mdp, Q, expert_pi, uniform_prior)
+            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi, uniform_prior)
 
-            if probability(min(1, new_posterior / posterior)): # with min{1, P(R',pi') / P(R,pi)}
-                mdp, pi, U = new_mdp, new_pi, new_U
+
+            if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi') / P(R,pi)}
+                pi, U, Q = new_pi, new_U, new_Q
+                mdp = deepcopy(new_mdp)
         else:
-            posterior = calculate_posterior(mdp, U, expert_pi, uniform_prior)
-            new_posterior = calculate_posterior(new_mdp, new_U, expert_pi, uniform_prior)
+            posterior = calculate_posterior(mdp, Q, expert_pi, uniform_prior)
+            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi, uniform_prior)
 
-            if probability(min(1, new_posterior / posterior)): # with min{1, P(R',pi) / P(R,pi)}
-                mdp, U = new_mdp, new_U
+            if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi) / P(R,pi)}
+                mdp, U, Q = new_mdp, new_U, new_Q
+
+        sse = calculate_sse(mdp, expert_mdp);
+        if sse < min_error:
+            min_error = sse
+            min_mdp = deepcopy(mdp)
 
         print("Difference is " + str(get_difference(pi, expert_pi)))
         print str(calculate_sse(mdp, expert_mdp))
 
-    return pi, mdp, get_difference(pi, expert_pi)
+    return pi, min_mdp, get_difference(pi, expert_pi)
 
 def get_difference(new_pi, ex_pi):
     shared_items = set(new_pi.items()) & set(ex_pi.items())
