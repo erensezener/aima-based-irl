@@ -60,50 +60,39 @@ class GridMDP(MDP):
                 self.reward[x, y] = grid[y][x]
                 if grid[y][x] is not None:
                     self.states.add((x, y))
-        self.scale_true_reward()
+        # self.scale_true_reward()
 
 
     def print_rewards(self):
-        # sum = 0
-        # for x in range(self.cols):
-        #     for y in range(self.rows):
-        #         sum += abs(self.reward[x, y])
-
-        for x in (range(self.cols)):
-            for y in (range(self.rows)):
-                # print("%.2f" % round(self.reward[x, y]/sum,2)),
-                print("%.2f" % round(self.reward[x, y], 2)),
+        proper_list = self.to_grid(self.reward);
+        for x in (range(self.rows)):
+            for y in (range(self.cols)):
+                print("%.2f" % round(proper_list[x][y], 2)),
             print(" ")
 
 
-    # def modify_rewards_randomly(self, stdev = 0.5): #epsilon is the magnitude of random change
-    #     sum = 0
-    #     for x in range(self.cols):
-    #         for y in range(self.rows):
-    #             self.reward[x, y] *= 1 + gauss(0,stdev)
-    #             sum += self.reward[x, y]
-    #     k = 1 / sum
-    #     for x in range(self.cols): #does normalization here
-    #         for y in range(self.rows):
-    #             self.reward[x, y] *= k
+    def get_grid_size(self):
+        return len(self.grid), len(self.grid[0])
 
 
     def modify_rewards_randomly(self, step=0.05, r_max = 10, r_min = -10):
         x_to_change = randint(0, self.cols - 1)
         y_to_change = randint(0, self.rows - 1)
         direction = randint(0, 1) * 2 - 1
-        print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
+        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
         if (r_min < self.reward[x_to_change, y_to_change] + direction * step < r_max):
             self.reward[x_to_change, y_to_change] += direction * step
-            print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
+            # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
 
     def get_max_reward(self): return max(self.reward.values())
 
     def get_min_reward(self): return min(self.reward.values())
 
     def scale_true_reward(self, R_min = -10, R_max = 10):
+    # This is necessary if we have no information about the prior information
     # scales the true reward functions so we have a better measure of reward
     # loss
+
         for key in self.reward:
             self.reward[key] /= max(self.get_max_reward(), abs(self.get_min_reward()))
 
@@ -114,28 +103,11 @@ class GridMDP(MDP):
         # if any(true_reward > 0):
         diff[1] = R_max / (self.get_max_reward() + SMALL_NUMBER)
 
-
-        # assert(all(diff>0))
-
         for key in self.reward:
             self.reward[key] *= min(diff)
 
-        print
-        # assert( all(true_reward >= R_min) )
-        # assert( all(true_reward <= R_max) )
 
 
-    # def normalize_rewards(self, Rmax=10):
-    #     sum = 0
-    #     for x in range(self.cols):
-    #         for y in range(self.rows):
-    #             if self.reward[x, y] != None:
-    #                 sum += self.reward[x, y]
-    #     for x in range(self.cols):
-    #         for y in range(self.rows):
-    #                 self.reward[x, y] /= sum
-
-    #
     def normalize_rewards(self, Rmax=10):
         for x in range(self.cols):
             for y in range(self.rows):
@@ -144,30 +116,6 @@ class GridMDP(MDP):
                         self.reward[x, y] = Rmax
                     if self.reward[x, y] < - Rmax:
                         self.reward[x, y] = - Rmax
-
-    # normalizes the reward vector such that sum(R_i) = C and sum(|R_i|) = D
-    # def normalize_rewards(self, C = 1, D = 1):
-    #     sum = 0
-    #     max = 0
-    #     min = 100
-    #     for x in range(self.cols):
-    #         for y in range(self.rows):
-    #             if self.reward[x, y] != None:
-    #                 sum += self.reward[x, y] #TODO handle None values here
-    #                 if self.reward[x, y] > max:
-    #                     max = self.reward[x, y]
-    #                 if self.reward[x, y] < min:
-    #                     min = self.reward[x, y]
-    #
-    #     # sum(R_i) = C normalization is done here
-    #     k = C / (sum + self.eps) # a hack to prevent div by zero
-    #     max *= k
-    #     min *= k
-    #     for x in range(self.cols): #does normalization here
-    #         for y in range(self.rows):
-    #             self.reward[x, y] *= k
-    #             self.reward[x, y] = 2* ((self.reward[x, y] - min) / (max - min)) -1
-
 
 
 
@@ -279,6 +227,7 @@ def calculate_q(s, a, mdp, U):
 # Priors:
 
 def calculate_cumulative_prior(mdp, calculate_prior):
+    # calculate_prior should be calculate_beta_priors or uniform_prior
     product = 1
     for s in mdp.states:
         product *= calculate_prior(mdp.R(s))
@@ -347,7 +296,7 @@ def policy_iteration(mdp):
                 pi[s] = a
                 unchanged = False
         if unchanged:
-            return pi
+            return pi, U
 
 
 def policy_evaluation(pi, U, mdp, k=20):
