@@ -5,9 +5,14 @@ then create problem instances and solve them with calls to the various search
 functions."""
 
 from __future__ import generators
+import math
+import random
+import sys
+import bisect
+
+from Other_AIMA_Scripts import agents
 from utils import *
-import agents
-import math, random, sys, time, bisect, string
+
 
 #______________________________________________________________________________
 

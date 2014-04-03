@@ -3,6 +3,11 @@ __maintainer__ = 'Eren Sezener'
 __email__ = "erensezener@gmail.com"
 
 """
+Author: Eren Sezener (erensezener@gmail.com)
+Date: April 3, 2014
+
+Status: Works correctly.
+
 This module finds the reward function via Bayesian Inverse Reinforcement Learning.
 See "Bayesian Inverse Reinforcement Learning" by Deepak Ramachandran and Eyal Amir (2007) for algorithm details.
 
@@ -33,16 +38,14 @@ def run_birl():
     print "Expert policy:"
     print_table(expert_mdp.to_arrows(expert_pi))
     print "---------------"
-    errors = []
 
-    diff_max = 10**10
+    diff_max = BIG_NUMBER
     best_pi = None
     best_mdp = None
 
     for i in range(iteration_limit):
         pi, mdp, diff = iterate_birl(expert_mdp.get_grid_size(), term,  expert_pi)
         print("Run :" + str(i))
-        errors.append(calculate_sse(mdp, expert_mdp))
         print_table(mdp.to_arrows(pi))
         print "vs"
         print_table(expert_mdp.to_arrows(expert_pi))
@@ -70,17 +73,6 @@ def run_birl():
     print ("Reward SSE: " + str(calculate_sse(best_mdp, expert_mdp)))
     print "---------------"
 
-    #
-    # print_table(mdp.to_arrows(pi))
-    # print "vs"
-    # print_table(expert_mdp.to_arrows(expert_pi))
-    # print("Difference is " + str(get_difference(pi, expert_pi)))
-    # mdp.print_rewards()
-    # print "vs"
-    # expert_mdp.print_rewards()
-    # print(str(max(errors)))
-
-
 
 
 def iterate_birl(grid_size, term_tuple, expert_pi, iteration_limit = 1000, step_size = 2):
@@ -90,9 +82,9 @@ def iterate_birl(grid_size, term_tuple, expert_pi, iteration_limit = 1000, step_
 
     pi, U = policy_iteration(mdp)
     Q = get_q_values(mdp, U)
-    posterior = calculate_posterior(mdp, Q, expert_pi, uniform_prior)
+    posterior = calculate_posterior(mdp, Q, expert_pi)
 
-    best_posterior = -2**31
+    best_posterior = NEGATIVE_SMALL_NUMBER
     best_mdp = None
     best_pi = None
 
@@ -106,7 +98,7 @@ def iterate_birl(grid_size, term_tuple, expert_pi, iteration_limit = 1000, step_
         if pi != best_policy(new_mdp, new_U):
             new_pi, new_U = policy_iteration(new_mdp)
             new_Q = get_q_values(new_mdp, new_U)
-            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi, uniform_prior)
+            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi)
 
             if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi') / P(R,pi)}
                 pi, U = new_pi, new_U
@@ -114,7 +106,7 @@ def iterate_birl(grid_size, term_tuple, expert_pi, iteration_limit = 1000, step_
                 posterior = new_posterior
         else:
             new_Q = get_q_values(new_mdp, new_U)
-            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi, uniform_prior)
+            new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi)
 
             if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi) / P(R,pi)}
                 mdp = deepcopy(new_mdp)

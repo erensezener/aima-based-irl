@@ -107,18 +107,6 @@ class GridMDP(MDP):
             self.reward[key] *= min(diff)
 
 
-
-    def normalize_rewards(self, Rmax=10):
-        for x in range(self.cols):
-            for y in range(self.rows):
-                if self.reward[x, y] != None:
-                    if self.reward[x, y] > Rmax:
-                        self.reward[x, y] = Rmax
-                    if self.reward[x, y] < - Rmax:
-                        self.reward[x, y] = - Rmax
-
-
-
     # def T(self, state, action):
     #     if action == None:
     #         return [(0.0, state)]
@@ -152,21 +140,6 @@ class GridMDP(MDP):
 #______________________________________________________________________________
 
 
-# Fig[17,1] = GridMDP([[-0.04, -0.04, -0.04, +1],
-#                      [-0.04, None,  -0.04, -1],
-#                      [-0.04, -0.04, -0.04, -0.04]],
-#                     terminals=[(3, 2), (3, 1)])
-
-# Test = GridMDP([[-0.04, -0.04, -0.04, +1],
-#                 [-0.04, -0.04,  -0.04, -0.04],
-#                 [-0.04, -0.04, -0.04, -0.04],
-#                 [-0.04, -0.04, -0.04, -0.04]],
-#                terminals=[(3, 3)])
-
-
-#______________________________________________________________________________
-
-
 def calculate_sse(mdp1, mdp2):
     "Returns the sum of the squared errors between two reward functions"
     sse = 0
@@ -179,7 +152,7 @@ def calculate_sse(mdp1, mdp2):
     return sse
 
 
-def calculate_sse_error_sum(rewards1, rewards2):
+def calculate_error_sum(rewards1, rewards2):
     "Returns the sum of errors between two reward functions"
     sse = 0
     if not (rewards1.cols == rewards2.cols and rewards1.rows == rewards2.rows):
@@ -193,53 +166,15 @@ def calculate_sse_error_sum(rewards1, rewards2):
 
 #______________________________________________________________________________
 
-def calculate_posterior(mdp, Q, expert_pi, prior_function, alpha = 0.99):  #TODO add priors
+def calculate_posterior(mdp, Q, expert_pi, gamma = 0.90):
     Z = []
     E = 0
     for s in mdp.states:
         for a in mdp.actions(s):
-            Z.append(alpha * Q[s, a])
-        E += alpha * Q[s, expert_pi[s]] - logsumexp(Z)
+            Z.append(gamma * Q[s, a])
+        E += gamma * Q[s, expert_pi[s]] - logsumexp(Z)
         del Z[:] #Remove contents of Z
-    # return E * calculate_cumulative_prior(mdp, prior_function)
     return E
-
-# def calculate_posterior(mdp, U, expert_pi, prior_function):  #TODO add priors
-#     return calculate_conditional(mdp, U, expert_pi) * calculate_cumulative_prior(mdp, prior_function)
-
-
-def calculate_conditional(mdp, U, expert_pi):
-    return math.exp(min(calculate_qsum(mdp, U, expert_pi), 709))  #exp(710) causes overflow
-
-
-def calculate_qsum(mdp, U, expert_pi):
-    qsum = 0
-    for s in mdp.states:
-        qsum += calculate_q(s, expert_pi[s], mdp, U)
-    return qsum
-
-
-def calculate_q(s, a, mdp, U):
-    R, T, gamma = mdp.R, mdp.T, mdp.gamma
-    Q = R(s) + gamma * sum([p * U[s1] for (p, s1) in T(s, a)])
-    return Q
-
-# Priors:
-
-def calculate_cumulative_prior(mdp, calculate_prior):
-    # calculate_prior should be calculate_beta_priors or uniform_prior
-    product = 1
-    for s in mdp.states:
-        product *= calculate_prior(mdp.R(s))
-    return product
-
-def calculate_beta_priors(R, Rmax=10):
-    R = abs(R)
-    Rmax += 0.000001
-    return 1 / (((R / Rmax) ** 0.5) * ((1 - R / Rmax) ** 0.5))
-
-
-def uniform_prior(_): return 1
 
 
 def get_q_values(mdp, U):
@@ -249,6 +184,17 @@ def get_q_values(mdp, U):
             for (p, sp) in mdp.T(s, a):
                 Q[s, a] = mdp.reward[s] + mdp.gamma * p * U[sp]
     return Q
+
+def calculate_beta_prior(R, Rmax=10):
+    R = abs(R)
+    Rmax += 0.000001
+    return 1 / (((R / Rmax) ** 0.5) * ((1 - R / Rmax) ** 0.5))
+
+
+def uniform_prior(_): return 1
+
+
+
 
 #______________________________________________________________________________
 
@@ -307,5 +253,3 @@ def policy_evaluation(pi, U, mdp, k=20):
         for s in mdp.states:
             U[s] = R(s) + gamma * sum([p * U[s] for (p, s1) in T(s, pi[s])])
     return U
-
-

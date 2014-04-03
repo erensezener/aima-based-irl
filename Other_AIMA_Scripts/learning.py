@@ -1,7 +1,9 @@
 """Learn to estimate functions  from examples. (Chapters 18-20)"""
 
+import random
+
 from utils import *
-import agents, random, operator
+
 
 #______________________________________________________________________________
 

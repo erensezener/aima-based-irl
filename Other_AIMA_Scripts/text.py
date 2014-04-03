@@ -3,10 +3,12 @@ We define Unigram and Ngram text models, use them to generate random text,
 and show the Viterbi algorithm for segmentatioon of letters into words.
 Then we show a very simple Information Retrieval system, and an example
 working on a tiny sample of Unix manual pages."""
-
-from utils import *
 from math import log, exp
-import re, probability, string, search
+import re
+
+from Other_AIMA_Scripts import search
+from utils import *
+
 
 class CountingProbDist(probability.ProbDist):
     """A probability distribution formed by observing and counting examples. 

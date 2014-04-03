@@ -13,7 +13,8 @@ import operator, math, random, copy, sys, os.path, bisect
 # 3 years old). The first part of this file brings you up to 2.4
 # compatibility if you are running in Python 2.2 or 2.3:
 
-BIG_NUMBER = 2**30
+BIG_NUMBER = 2**31
+NEGATIVE_SMALL_NUMBER = - 2**31
 SMALL_NUMBER = 0.0000000001
 
 try: bool, True, False ## Introduced in 2.3

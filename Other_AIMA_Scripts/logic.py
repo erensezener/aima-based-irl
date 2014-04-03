@@ -26,8 +26,10 @@ And a few other functions:
 
 from __future__ import generators
 import re
-import agents
+
+from Other_AIMA_Scripts import agents
 from utils import *
+
 
 #______________________________________________________________________________
 

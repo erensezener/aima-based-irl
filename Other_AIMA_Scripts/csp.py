@@ -1,9 +1,9 @@
 """CSP (Constraint Satisfaction Problems) problems and solvers. (Chapter 5)."""
 
 from __future__ import generators
+from Other_AIMA_Scripts import search
 from utils import *
-import search
-import types
+
 
 class CSP(search.Problem):
     """This class describes finite-domain Constraint Satisfaction Problems.

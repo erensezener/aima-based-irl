@@ -1,8 +1,7 @@
 """Reinforcement Learning (Chapter 21)
 """
+from Other_AIMA_Scripts import agents
 
-from utils import *
-import agents
 
 class PassiveADPAgent(agents.Agent):
     """Passive (non-learning) agent that uses adaptive dynamic programming

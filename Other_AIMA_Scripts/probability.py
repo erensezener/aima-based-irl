@@ -1,10 +1,9 @@
 """Probability models. (Chapter 13-15)
 """
+from Other_AIMA_Scripts import agents
 
 from utils import *
-from logic import extend
-import agents
-import bisect, random
+from Other_AIMA_Scripts.logic import extend
 
 #______________________________________________________________________________
 
