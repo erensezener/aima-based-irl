@@ -14,15 +14,14 @@ Known bugs: -
 
 """
 
-
 from mdp import *
 from utils import *
 from copy import deepcopy
 from math import exp
 
-class BIRL():
 
-    def __init__(self, expert_mdp, iteration_limit = 30, birl_iteration = 1000, step_size = 2, r_min = -10, r_max = 10):
+class BIRL():
+    def __init__(self, expert_mdp, iteration_limit=30, birl_iteration=1000, step_size=2, r_min=-10, r_max=10):
         self.expert_mdp = expert_mdp
         self.iteration_limit = iteration_limit
         self.n_rows, self.n_columns = expert_mdp.get_grid_size()
@@ -30,7 +29,6 @@ class BIRL():
         self.step_size = step_size
         self.expert_pi = best_policy(self.expert_mdp, value_iteration(self.expert_mdp, 0.01))
         self.birl_iteration = birl_iteration
-
 
     def run_multiple_birl(self):
         """Run BIRL algorithm iteration_limit times.
@@ -65,43 +63,36 @@ class BIRL():
         self.print_reward_comparison(best_mdp, best_pi)
         self.print_sse(best_mdp)
 
-
-
-
     def run_birl(self):
-    #This is the core BIRL algorithm
+        #This is the core BIRL algorithm
         mdp = self.create_rewards(self.create_zero_rewards)
-        pi, U = policy_iteration(mdp)
-        Q = get_q_values(mdp, U)
-        posterior = calculate_posterior(mdp, Q, self.expert_pi)
+        pi, u = policy_iteration(mdp)
+        q = get_q_values(mdp, u)
+        posterior = calculate_posterior(mdp, q, self.expert_pi)
+        best_posterior, best_mdp, best_pi = NEGATIVE_SMALL_NUMBER, None, None
 
-        best_posterior = NEGATIVE_SMALL_NUMBER
-        best_mdp = None
-        best_pi = None
-
-        for iter in range(self.birl_iteration):
+        for _ in range(self.birl_iteration):
             new_mdp = deepcopy(mdp)
             new_mdp.modify_rewards_randomly(self.step_size)
-            new_U = policy_evaluation(pi, U, new_mdp, 1)
+            new_u = policy_evaluation(pi, u, new_mdp, 1)
 
-            if pi != best_policy(new_mdp, new_U):
-                new_pi, new_U = policy_iteration(new_mdp)
-                new_Q = get_q_values(new_mdp, new_U)
-                new_posterior = calculate_posterior(new_mdp, new_Q, self.expert_pi)
+            if pi != best_policy(new_mdp, new_u):
+                new_pi, new_u = policy_iteration(new_mdp)
+                new_q = get_q_values(new_mdp, new_u)
+                new_posterior = calculate_posterior(new_mdp, new_q, self.expert_pi)
 
                 if probability(min(1, exp(new_posterior - posterior))):
-                    pi, U, mdp, posterior = new_pi, new_U, deepcopy(new_mdp), new_posterior
+                    pi, u, mdp, posterior = new_pi, new_u, deepcopy(new_mdp), new_posterior
 
             else:
-                new_Q = get_q_values(new_mdp, new_U)
-                new_posterior = calculate_posterior(new_mdp, new_Q, self.expert_pi)
+                new_q = get_q_values(new_mdp, new_u)
+                new_posterior = calculate_posterior(new_mdp, new_q, self.expert_pi)
 
                 if probability(min(1, exp(new_posterior - posterior))):
                     mdp, posterior = deepcopy(new_mdp), new_posterior
 
-            if posterior > best_posterior: # Pick the mdp with the best posterior
+            if posterior > best_posterior:  # Pick the mdp with the best posterior
                 best_posterior, best_mdp, best_pi = posterior, deepcopy(mdp), pi
-
 
         return best_pi, best_mdp, get_difference(best_pi, self.expert_pi)
 
@@ -114,7 +105,12 @@ class BIRL():
         print "vs"
         self.expert_mdp.print_rewards()
 
-    def create_rewards(self, reward_function_to_call = None):
+    def print_sse(self, mdp):
+        print ("Reward SSE: " + str(calculate_sse(mdp, self.expert_mdp)))
+        print "---------------"
+
+#------------- Reward functions ------------
+    def create_rewards(self, reward_function_to_call=None):
         # If no reward function is specified, sets all rewards as 0
         if reward_function_to_call is None:
             return self.create_zero_rewards()
@@ -122,18 +118,18 @@ class BIRL():
 
     def create_zero_rewards(self):
         return GridMDP([[0 for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-                       ,terminals=deepcopy(self.expert_mdp.terminals))
+                       , terminals=deepcopy(self.expert_mdp.terminals))
 
     def create_random_rewards(self):
         return GridMDP(
             [[random.uniform(self.r_min, self.r_max) for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-                       ,terminals=deepcopy(self.expert_mdp.terminals))
+            , terminals=deepcopy(self.expert_mdp.terminals))
 
     def create_gaussian_rewards(self):
-        mean, stdev = 0, self.r_max/3
+        mean, stdev = 0, self.r_max / 3
         return GridMDP(
             [[self.bound_rewards(random.gauss(mean, stdev)) for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-                       ,terminals=deepcopy(self.expert_mdp.terminals))
+            , terminals=deepcopy(self.expert_mdp.terminals))
 
     def bound_rewards(self, reward):
         if reward > self.r_max:
@@ -142,10 +138,7 @@ class BIRL():
             reward = self.r_min
         return reward
 
-    def print_sse(self, mdp):
-        print ("Reward SSE: " + str(calculate_sse(mdp, self.expert_mdp)))
-        print "---------------"
-
+#---------------------------------------
 def get_difference(new_pi, ex_pi):
     shared_items = set(new_pi.items()) & set(ex_pi.items())
     return len(new_pi.items()) - len(shared_items)
