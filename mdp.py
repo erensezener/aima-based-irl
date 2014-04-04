@@ -21,7 +21,7 @@ class MDP:
     pairs.  We also keep track of the possible states, terminal states, and 
     actions for each state. [page 615]"""
 
-    def __init__(self, init, actlist, terminals, gamma=.9):
+    def __init__(self, init, actlist, terminals, gamma=.95):
         update(self, init=init, actlist=actlist, terminals=terminals,
                gamma=gamma, states=set(), reward={}, r_max = 10, r_min = -10)
 
@@ -51,7 +51,7 @@ class GridMDP(MDP):
     An action is an (x, y) unit vector; e.g. (1, 0) means move east."""
 
 
-    def __init__(self, grid, terminals, init=(0, 0), gamma=.9):
+    def __init__(self, grid, terminals, init=(0, 0), gamma=.95):
         grid.reverse()  ## because we want row 0 on bottom, not on top
         MDP.__init__(self, init, actlist=orientations,
                      terminals=terminals, gamma=gamma)
@@ -153,21 +153,23 @@ def calculate_sse(mdp1, mdp2):
     return sse
 
 
-def calculate_error_sum(rewards1, rewards2):
-    "Returns the sum of errors between two reward functions"
-    sse = 0
-    if not (rewards1.cols == rewards2.cols and rewards1.rows == rewards2.rows):
+def calculate_error_sum(mdp1, mdp2):
+    """Returns the sum of errors between two reward functions
+    Sum is normalized with respect to the number of states
+    """
+    sum = 0
+    if not (mdp1.cols == mdp2.cols and mdp1.rows == mdp2.rows):
         raise Exception("Mismatch between # of rows and columns of reward vectors")
 
-    for x in range(rewards1.cols):
-        for y in range(rewards1.rows):
-            sse += abs((rewards1[x, y] - rewards2[x, y]))
-    return sse
+    for x in range(mdp1.cols):
+        for y in range(mdp1.rows):
+            sum += abs(mdp1.reward[x, y] - mdp2.reward[x, y])
+    return sum / (float(mdp1.cols * mdp1.rows))
 
 
 #______________________________________________________________________________
 
-def calculate_posterior(mdp, Q, expert_pi, gamma = 0.90):
+def calculate_posterior(mdp, Q, expert_pi, gamma = 0.95):
     Z = []
     E = 0
     for s in mdp.states:

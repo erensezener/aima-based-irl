@@ -27,7 +27,7 @@ class BIRL():
         self.n_rows, self.n_columns = expert_mdp.get_grid_size()
         self.r_min, self.r_max = r_min, r_max
         self.step_size = step_size
-        self.expert_pi = best_policy(self.expert_mdp, value_iteration(self.expert_mdp, 0.01))
+        self.expert_pi = best_policy(self.expert_mdp, value_iteration(self.expert_mdp, 0.001))
         self.birl_iteration = birl_iteration
 
     def run_multiple_birl(self):
@@ -50,7 +50,7 @@ class BIRL():
             print("Run :" + str(i))
 
             self.print_reward_comparison(mdp, pi)
-            self.print_sse(mdp)
+            self.print_error_sum(mdp)
 
             if policy_difference < max_policy_difference:
                 max_policy_difference = policy_difference
@@ -61,11 +61,11 @@ class BIRL():
         print"Best results:"
 
         self.print_reward_comparison(best_mdp, best_pi)
-        self.print_sse(best_mdp)
+        self.print_error_sum(best_mdp)
 
     def run_birl(self):
         #This is the core BIRL algorithm
-        mdp = self.create_rewards(self.create_zero_rewards)
+        mdp = self.create_rewards(self.create_rewards)
         pi, u = policy_iteration(mdp)
         q = get_q_values(mdp, u)
         posterior = calculate_posterior(mdp, q, self.expert_pi)
@@ -105,11 +105,21 @@ class BIRL():
         print "vs"
         self.expert_mdp.print_rewards()
 
+    def print_error_sum(self, mdp):
+        print ("Total Error: " + str(self.normalize_by_max_reward(calculate_error_sum(mdp, self.expert_mdp))))
+        print "---------------"
+
     def print_sse(self, mdp):
         print ("Reward SSE: " + str(calculate_sse(mdp, self.expert_mdp)))
         print "---------------"
 
+    def normalize_by_max_reward(self, value):
+        if self.r_max != abs(self.r_min):
+            raise Exception("Normalization cannot be done. r_min and r_max values have different abs sums!")
+        return value / float(self.r_max)
+
 #------------- Reward functions ------------
+    #TODO move priors out of the mdp
     def create_rewards(self, reward_function_to_call=None):
         # If no reward function is specified, sets all rewards as 0
         if reward_function_to_call is None:
