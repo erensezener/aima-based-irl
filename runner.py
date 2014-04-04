@@ -21,7 +21,7 @@ def main():
             [0, 0, 0, 0, 0]],
             terminals=[(4,3)])
     birl = BIRL(expert_mdp)
-    birl.run_birl()
+    birl.run_multiple_birl()
 
 if __name__=="__main__":
     main()

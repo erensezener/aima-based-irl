@@ -23,7 +23,7 @@ class MDP:
 
     def __init__(self, init, actlist, terminals, gamma=.9):
         update(self, init=init, actlist=actlist, terminals=terminals,
-               gamma=gamma, states=set(), reward={})
+               gamma=gamma, states=set(), reward={}, r_max = 10, r_min = -10)
 
     def R(self, state):
         "Return a numeric reward for this state."
@@ -50,6 +50,7 @@ class GridMDP(MDP):
     (unreachable state).  Also, you should specify the terminal states.
     An action is an (x, y) unit vector; e.g. (1, 0) means move east."""
 
+
     def __init__(self, grid, terminals, init=(0, 0), gamma=.9):
         grid.reverse()  ## because we want row 0 on bottom, not on top
         MDP.__init__(self, init, actlist=orientations,
@@ -75,12 +76,12 @@ class GridMDP(MDP):
         return len(self.grid), len(self.grid[0])
 
 
-    def modify_rewards_randomly(self, step=0.05, r_max = 10, r_min = -10):
+    def modify_rewards_randomly(self, step=0.05):
         x_to_change = randint(0, self.cols - 1)
         y_to_change = randint(0, self.rows - 1)
         direction = randint(0, 1) * 2 - 1
         # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
-        if (r_min < self.reward[x_to_change, y_to_change] + direction * step < r_max):
+        if (self.r_min < self.reward[x_to_change, y_to_change] + direction * step < self.r_max):
             self.reward[x_to_change, y_to_change] += direction * step
             # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
 
@@ -88,7 +89,7 @@ class GridMDP(MDP):
 
     def get_min_reward(self): return min(self.reward.values())
 
-    def scale_true_reward(self, R_min = -10, R_max = 10):
+    def scale_true_reward(self):
     # This is necessary if we have no information about the prior information
     # scales the true reward functions so we have a better measure of reward
     # loss
@@ -98,10 +99,10 @@ class GridMDP(MDP):
 
         diff = [BIG_NUMBER, BIG_NUMBER]
         # if any(true_reward < 0):
-        diff[0] = R_min / (self.get_min_reward() - SMALL_NUMBER)
+        diff[0] = self.r_min / (self.get_min_reward() - SMALL_NUMBER)
 
         # if any(true_reward > 0):
-        diff[1] = R_max / (self.get_max_reward() + SMALL_NUMBER)
+        diff[1] = self.r_max / (self.get_max_reward() + SMALL_NUMBER)
 
         for key in self.reward:
             self.reward[key] *= min(diff)
