@@ -22,102 +22,97 @@ from math import exp
 
 class BIRL():
 
-    def __init__(self, expert_mdp, iteration_limit = 30, r_min = -10, r_max = 10):
+    def __init__(self, expert_mdp, iteration_limit = 30, birl_iteration = 1000, step_size = 2, r_min = -10, r_max = 10):
         self.expert_mdp = expert_mdp
         self.iteration_limit = iteration_limit
         self.n_rows, self.n_columns = expert_mdp.get_grid_size()
         self.r_min, self.r_max = r_min, r_max
+        self.step_size = step_size
+        self.expert_pi = best_policy(self.expert_mdp, value_iteration(self.expert_mdp, 0.01))
+        self.birl_iteration = birl_iteration
 
 
     def run_multiple_birl(self):
+        """Run BIRL algorithm iteration_limit times.
+        Pick the result with the highest posterior probability
+        """
+
         print "Expert rewards:"
         self.expert_mdp.print_rewards()
-        expert_pi = best_policy(self.expert_mdp, value_iteration(self.expert_mdp, 0.1))
         print "Expert policy:"
-        print_table(self.expert_mdp.to_arrows(expert_pi))
+        print_table(self.expert_mdp.to_arrows(self.expert_pi))
         print "---------------"
 
-        diff_max = BIG_NUMBER
+        max_policy_difference = BIG_NUMBER
         best_pi = None
         best_mdp = None
 
         for i in range(self.iteration_limit):
-            pi, mdp, diff = self.run_birl(expert_pi)
+            pi, mdp, policy_difference = self.run_birl()
             print("Run :" + str(i))
-            print_table(mdp.to_arrows(pi))
-            print "vs"
-            print_table(self.expert_mdp.to_arrows(expert_pi))
-            print("Policy difference is " + str(get_difference(pi, expert_pi)))
-            mdp.print_rewards()
-            print "vs"
-            self.expert_mdp.print_rewards()
-            print ("Reward SSE: " + str(calculate_sse(mdp, self.expert_mdp)))
-            print "---------------"
 
-            if diff < diff_max:
-                diff_max = diff
+            self.print_reward_comparison(mdp, pi)
+            self.print_sse(mdp)
+
+            if policy_difference < max_policy_difference:
+                max_policy_difference = policy_difference
                 best_pi = pi
                 best_mdp = mdp
 
         print "---------------"
         print"Best results:"
-        print_table(best_mdp.to_arrows(best_pi))
-        print "vs"
-        print_table(self.expert_mdp.to_arrows(expert_pi))
-        print("Policy difference is " + str(get_difference(best_pi, expert_pi)))
-        best_mdp.print_rewards()
-        print "vs"
-        self.expert_mdp.print_rewards()
-        print ("Reward SSE: " + str(calculate_sse(best_mdp, self.expert_mdp)))
-        print "---------------"
+
+        self.print_reward_comparison(best_mdp, best_pi)
+        self.print_sse(best_mdp)
 
 
 
-    def run_birl(self, expert_pi, iteration_limit = 1000, step_size = 2):
-        mdp = self.create_rewards(self.create_gaussian_rewards)
+
+    def run_birl(self):
+    #This is the core BIRL algorithm
+        mdp = self.create_rewards(self.create_zero_rewards)
         pi, U = policy_iteration(mdp)
         Q = get_q_values(mdp, U)
-        posterior = calculate_posterior(mdp, Q, expert_pi)
+        posterior = calculate_posterior(mdp, Q, self.expert_pi)
 
         best_posterior = NEGATIVE_SMALL_NUMBER
         best_mdp = None
         best_pi = None
 
-
-
-        for iter in range(iteration_limit):
-            new_mdp = deepcopy(mdp) #creates a new reward function that is very similar to the original one
-            new_mdp.modify_rewards_randomly(step_size)
+        for iter in range(self.birl_iteration):
+            new_mdp = deepcopy(mdp)
+            new_mdp.modify_rewards_randomly(self.step_size)
             new_U = policy_evaluation(pi, U, new_mdp, 1)
 
             if pi != best_policy(new_mdp, new_U):
                 new_pi, new_U = policy_iteration(new_mdp)
                 new_Q = get_q_values(new_mdp, new_U)
-                new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi)
+                new_posterior = calculate_posterior(new_mdp, new_Q, self.expert_pi)
 
-                if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi') / P(R,pi)}
-                    pi, U = new_pi, new_U
-                    mdp = deepcopy(new_mdp)
-                    posterior = new_posterior
+                if probability(min(1, exp(new_posterior - posterior))):
+                    pi, U, mdp, posterior = new_pi, new_U, deepcopy(new_mdp), new_posterior
+
             else:
                 new_Q = get_q_values(new_mdp, new_U)
-                new_posterior = calculate_posterior(new_mdp, new_Q, expert_pi)
+                new_posterior = calculate_posterior(new_mdp, new_Q, self.expert_pi)
 
-                if probability(min(1, exp(new_posterior - posterior))): # with min{1, P(R',pi) / P(R,pi)}
-                    mdp = deepcopy(new_mdp)
-                    posterior = new_posterior
+                if probability(min(1, exp(new_posterior - posterior))):
+                    mdp, posterior = deepcopy(new_mdp), new_posterior
+
+            if posterior > best_posterior: # Pick the mdp with the best posterior
+                best_posterior, best_mdp, best_pi = posterior, deepcopy(mdp), pi
 
 
-            # sse = calculate_sse(mdp, expert_mdp);
-            if posterior > best_posterior:
-                best_posterior = posterior
-                best_mdp = deepcopy(mdp)
-                best_pi = pi
+        return best_pi, best_mdp, get_difference(best_pi, self.expert_pi)
 
-            # print("Difference is " + str(get_difference(pi, expert_pi)))
-            # print str(calculate_sse(mdp, expert_mdp))
-
-        return best_pi, best_mdp, get_difference(best_pi, expert_pi)
+    def print_reward_comparison(self, mdp, pi):
+        print_table(mdp.to_arrows(pi))
+        print "vs"
+        print_table(self.expert_mdp.to_arrows(self.expert_pi))
+        print("Policy difference is " + str(get_difference(pi, self.expert_pi)))
+        mdp.print_rewards()
+        print "vs"
+        self.expert_mdp.print_rewards()
 
     def create_rewards(self, reward_function_to_call = None):
         # If no reward function is specified, sets all rewards as 0
@@ -147,10 +142,10 @@ class BIRL():
             reward = self.r_min
         return reward
 
+    def print_sse(self, mdp):
+        print ("Reward SSE: " + str(calculate_sse(mdp, self.expert_mdp)))
+        print "---------------"
 
 def get_difference(new_pi, ex_pi):
     shared_items = set(new_pi.items()) & set(ex_pi.items())
     return len(new_pi.items()) - len(shared_items)
-
-
-
