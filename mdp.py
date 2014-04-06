@@ -138,40 +138,6 @@ class GridMDP(MDP):
         return self.to_grid(dict([(s, chars[a]) for (s, a) in policy.items()]))
 
 
-
-#______________________________________________________________________________
-
-def calculate_posterior(mdp, Q, expert_pi, gamma = 0.95):
-    Z = []
-    E = 0
-    for s in mdp.states:
-        for a in mdp.actions(s):
-            Z.append(gamma * Q[s, a])
-        E += gamma * Q[s, expert_pi[s]] - logsumexp(Z)
-        del Z[:] #Remove contents of Z
-    return E
-
-
-def get_q_values(mdp, U):
-    Q = {}
-    for s in mdp.states:
-        for a in mdp.actions(s):
-            for (p, sp) in mdp.T(s, a):
-                Q[s, a] = mdp.reward[s] + mdp.gamma * p * U[sp]
-    return Q
-
-
-def calculate_beta_prior(R, Rmax=10):
-    R = abs(R)
-    Rmax += 0.000001
-    return 1 / (((R / Rmax) ** 0.5) * ((1 - R / Rmax) ** 0.5))
-
-
-def uniform_prior(_): return 1
-
-
-
-
 #______________________________________________________________________________
 
 def value_iteration(mdp, epsilon=0.001):
