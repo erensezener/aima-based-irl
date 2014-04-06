@@ -1,11 +1,11 @@
 """
 Author: Eren Sezener (erensezener@gmail.com)
-Date: April 3, 2014
+Date: April 6, 2014
 
-Description: This module finds the reward function via Bayesian Inverse Reinforcement Learning.
-See "Bayesian Inverse Reinforcement Learning" by Deepak Ramachandran and Eyal Amir (2007) for algorithm details.
+Description: This implementation is based on "Improving the Efficiency of Bayesian Inverse Reinforcement Learning" by
+Michini and How.
 
-Status: Works correctly.
+Status: Work In Progress
 
 Dependencies: This module is compatible with Python 2.7.5.
 

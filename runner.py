@@ -13,16 +13,18 @@ Known bugs: -
 """
 
 from birl import *
+from functools import partial
+import matplotlib.pyplot as plt
 
 
 def main():
     number_of_iterations = 10
 
-    # expert_mdp = GridMDP([[-10, -5, 0, 0, 10],
-    #         [-5, -3, 0, 0, 0],
-    #         [0, 0, 0, 0, 0],
-    #         [0, 0, 0, 0, 0]],
-    #         terminals=[(4,3)])
+    expert_mdp = GridMDP([[-10, -5, 0, 0, 10],
+            [-5, -3, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0]],
+            terminals=[(4,3)])
 
     # expert_mdp = GridMDP([[-10, -5, -3, -1, 0, 0, 0, 0, 0, 10],
     #         [-8, -5, -3, 0, 0, 0, 0, 0, 0, 0],
@@ -31,12 +33,12 @@ def main():
     #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
     #         terminals=[(9,4)])
 
-    expert_mdp = GridMDP([[0, 0, 0, 0, -1, -1, 0, 0, 0, 10],
-                        [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
-                        [0, 0, 0, -3, -5, -5, -3, 0, 0, 0],
-                        [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
-                        [0, 0, 0, 0, 0, -1, -1, 0, 0, 0]],
-                        terminals=[(9,4)])
+    # expert_mdp = GridMDP([[0, 0, 0, 0, -1, -1, 0, 0, 0, 10],
+    #                     [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
+    #                     [0, 0, 0, -3, -5, -5, -3, 0, 0, 0],
+    #                     [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
+    #                     [0, 0, 0, 0, 0, -1, -1, 0, 0, 0]],
+    #                     terminals=[(9,4)])
 
     expert_trace = best_policy(expert_mdp, value_iteration(expert_mdp, 0.001))
     print "Expert rewards:"
@@ -45,8 +47,9 @@ def main():
     print_table(expert_mdp.to_arrows(expert_trace))
     print "---------------"
 
-    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals)
+    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum(), expert_mdp), 1000)
     run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
+    plt.show()
 
 def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
     """Run BIRL algorithm iteration_limit times.
@@ -56,7 +59,11 @@ def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
     best_pi, best_mdp = None, None
 
     for i in range(number_of_iteration):
-        pi, mdp = birl.run_birl()
+        pi, mdp, errors = birl.run_birl()
+        plt.subplot(5,2,i+1)
+        plt.plot(range(birl.birl_iteration), errors, 'ro')
+        plt.axes([0, birl.birl_iteration,0, 10])
+        plt.draw()
         policy_difference = get_difference(pi, expert_trace)
         print("Run :" + str(i))
 
