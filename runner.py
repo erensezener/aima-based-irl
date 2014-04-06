@@ -2,7 +2,7 @@
 Author: Eren Sezener (erensezener@gmail.com)
 Date: April 4, 2014
 
-Description:
+Description: Runs the BIRL algorithm multiple times.
 
 Status: Works correctly.
 
@@ -14,7 +14,10 @@ Known bugs: -
 
 from birl import *
 
+
 def main():
+    number_of_iterations = 10
+
     # expert_mdp = GridMDP([[-10, -5, 0, 0, 10],
     #         [-5, -3, 0, 0, 0],
     #         [0, 0, 0, 0, 0],
@@ -35,9 +38,92 @@ def main():
                         [0, 0, 0, 0, 0, -1, -1, 0, 0, 0]],
                         terminals=[(9,4)])
 
+    expert_trace = best_policy(expert_mdp, value_iteration(expert_mdp, 0.001))
+    print "Expert rewards:"
+    expert_mdp.print_rewards()
+    print "Expert policy:"
+    print_table(expert_mdp.to_arrows(expert_trace))
+    print "---------------"
 
-    birl = BIRL(expert_mdp)
-    birl.run_multiple_birl()
+    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals)
+    run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
+
+def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
+    """Run BIRL algorithm iteration_limit times.
+    Pick the result with the highest posterior probability
+    """
+    max_policy_difference = BIG_NUMBER
+    best_pi, best_mdp = None, None
+
+    for i in range(number_of_iteration):
+        pi, mdp = birl.run_birl()
+        policy_difference = get_difference(pi, expert_trace)
+        print("Run :" + str(i))
+
+        print_reward_comparison(mdp, pi, expert_mdp, expert_trace)
+        print_error_sum(mdp, birl, expert_mdp)
+
+        if policy_difference < max_policy_difference:
+            max_policy_difference = policy_difference
+            best_pi = pi
+            best_mdp = mdp
+
+    print "---------------"
+    print"Best results:"
+
+    print_reward_comparison(best_mdp, best_pi, expert_mdp, expert_trace)
+    print_error_sum(best_mdp, birl, expert_mdp)
+
+def print_reward_comparison(mdp, pi, expert_mdp, expert_trace):
+    print_table(mdp.to_arrows(pi))
+    print "vs"
+    print_table(mdp.to_arrows(expert_trace))
+    print("Policy difference is " + str(get_difference(pi, expert_trace)))
+    mdp.print_rewards()
+    print "vs"
+    expert_mdp.print_rewards()
+
+def print_error_sum(mdp, birl, expert_mdp):
+    print ("Total Error: " + str(normalize_by_max_reward(calculate_error_sum(mdp, expert_mdp), birl)))
+    print "---------------"
+
+def print_sse(mdp, expert_trace):
+    print ("Reward SSE: " + str(calculate_sse(mdp, expert_trace)))
+    print "---------------"
+
+def normalize_by_max_reward(value, birl):
+    if birl.r_max != abs(birl.r_min):
+        raise Exception("Normalization cannot be done. r_min and r_max values have different abs sums!")
+    return value / float(birl.r_max)
+
+def calculate_sse(mdp1, mdp2):
+    "Returns the sum of the squared errors between two reward functions"
+    sse = 0
+    if not (mdp1.cols == mdp2.cols and mdp1.rows == mdp2.rows):
+        raise Exception("Mismatch between # of rows and columns of reward vectors")
+
+    for x in range(mdp1.cols):
+        for y in range(mdp1.rows):
+            sse += (mdp1.reward[x, y] - mdp2.reward[x, y]) ** 2
+    return sse
+
+
+def calculate_error_sum(mdp1, mdp2):
+    """Returns the sum of errors between two reward functions
+    Sum is normalized with respect to the number of states
+    """
+    sum = 0
+    if not (mdp1.cols == mdp2.cols and mdp1.rows == mdp2.rows):
+        raise Exception("Mismatch between # of rows and columns of reward vectors")
+
+    for x in range(mdp1.cols):
+        for y in range(mdp1.rows):
+            sum += abs(mdp1.reward[x, y] - mdp2.reward[x, y])
+    return sum / (float(mdp1.cols * mdp1.rows))
+
+def get_difference(new_pi, ex_pi):
+    shared_items = set(new_pi.items()) & set(ex_pi.items())
+    return len(new_pi.items()) - len(shared_items)
 
 if __name__=="__main__":
     main()

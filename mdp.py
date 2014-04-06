@@ -138,34 +138,6 @@ class GridMDP(MDP):
         return self.to_grid(dict([(s, chars[a]) for (s, a) in policy.items()]))
 
 
-#______________________________________________________________________________
-
-
-def calculate_sse(mdp1, mdp2):
-    "Returns the sum of the squared errors between two reward functions"
-    sse = 0
-    if not (mdp1.cols == mdp2.cols and mdp1.rows == mdp2.rows):
-        raise Exception("Mismatch between # of rows and columns of reward vectors")
-
-    for x in range(mdp1.cols):
-        for y in range(mdp1.rows):
-            sse += (mdp1.reward[x, y] - mdp2.reward[x, y]) ** 2
-    return sse
-
-
-def calculate_error_sum(mdp1, mdp2):
-    """Returns the sum of errors between two reward functions
-    Sum is normalized with respect to the number of states
-    """
-    sum = 0
-    if not (mdp1.cols == mdp2.cols and mdp1.rows == mdp2.rows):
-        raise Exception("Mismatch between # of rows and columns of reward vectors")
-
-    for x in range(mdp1.cols):
-        for y in range(mdp1.rows):
-            sum += abs(mdp1.reward[x, y] - mdp2.reward[x, y])
-    return sum / (float(mdp1.cols * mdp1.rows))
-
 
 #______________________________________________________________________________
 
@@ -187,6 +159,7 @@ def get_q_values(mdp, U):
             for (p, sp) in mdp.T(s, a):
                 Q[s, a] = mdp.reward[s] + mdp.gamma * p * U[sp]
     return Q
+
 
 def calculate_beta_prior(R, Rmax=10):
     R = abs(R)
