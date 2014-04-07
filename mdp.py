@@ -44,6 +44,7 @@ class MDP:
             return self.actlist
 
 
+
 class GridMDP(MDP):
     """A two-dimensional grid MDP, as in [Figure 17.1].  All you have to do is 
     specify the grid as a list of lists of rewards; use None for an obstacle
@@ -61,8 +62,15 @@ class GridMDP(MDP):
                 self.reward[x, y] = grid[y][x]
                 if grid[y][x] is not None:
                     self.states.add((x, y))
-        # self.scale_true_reward()
 
+
+    def get_grid(self):
+        grid = self.grid
+        for x in range(self.cols):
+            for y in range(self.rows):
+                grid[y][x] = self.reward[x, y]
+        grid.reverse()
+        return grid
 
     def print_rewards(self):
         proper_list = self.to_grid(self.reward);

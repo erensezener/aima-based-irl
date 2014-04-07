@@ -15,16 +15,17 @@ Known bugs: -
 from birl import *
 from functools import partial
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def main():
     number_of_iterations = 10
 
-    expert_mdp = GridMDP([[-10, -5, 0, 0, 10],
-            [-5, -3, 0, 0, 0],
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0]],
-            terminals=[(4,3)])
+    # expert_mdp = GridMDP([[-10, -5, 0, 0, 10],
+    #         [-5, -3, 0, 0, 0],
+    #         [0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 0]],
+    #         terminals=[(4,3)])
 
     # expert_mdp = GridMDP([[-10, -5, -3, -1, 0, 0, 0, 0, 0, 10],
     #         [-8, -5, -3, 0, 0, 0, 0, 0, 0, 0],
@@ -40,6 +41,32 @@ def main():
     #                     [0, 0, 0, 0, 0, -1, -1, 0, 0, 0]],
     #                     terminals=[(9,4)])
 
+    rewards = [[0, 0, 0, 0, -1, -1, 0, 0, 0, 10],
+                    [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
+                    [0, 0, 0, -3, -5, -5, -3, 0, 0, 0],
+                    [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
+                    [0, 0, 0, 0, 0, -1, -1, 0, 0, 0]]
+
+    expert_mdp = GridMDP(rewards,
+                    terminals=[(9,4)])
+
+    # column_labels = list('ABCD')
+    # row_labels = list('WXYZ')
+
+
+    # put the major ticks at the middle of each cell
+    # ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
+    # ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
+
+    # want a more natural, table-like display
+    # ax.invert_yaxis()
+    # ax.xaxis.tick_top()
+
+    # ax.set_xticklabels(row_labels, minor=False)
+    # ax.set_yticklabels(column_labels, minor=False)
+    plt.show()
+
+
     expert_trace = best_policy(expert_mdp, value_iteration(expert_mdp, 0.001))
     print "Expert rewards:"
     expert_mdp.print_rewards()
@@ -47,17 +74,25 @@ def main():
     print_table(expert_mdp.to_arrows(expert_trace))
     print "---------------"
 
-    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum, expert_mdp), birl_iteration=1000)
+    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum, expert_mdp), birl_iteration=100)
     run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
 
 
-def plot_errors(policy_error, reward_error, dirname, birl, i):
-    _, axarr = plt.subplots(2, sharex=True)
+def plot_errors(policy_error, reward_error, dirname, birl, i, expert_mdp, mdp):
+    _, axarr = plt.subplots(4, sharex=True)
+    expert_data = np.array(expert_mdp.get_grid())
+    _ = axarr[0].pcolor(expert_data, cmap=plt.cm.RdYlGn)
+    axarr[0].set_title("Expert's Rewards")
 
-    axarr[0].plot(range(birl.birl_iteration), policy_error, 'ro')
-    axarr[0].set_title('Policy change')
-    axarr[1].plot(range(birl.birl_iteration), reward_error, 'bo')
-    axarr[1].set_title('Reward change')
+    data = np.array(mdp.get_grid())
+    _ = axarr[1].pcolor(data, cmap=plt.cm.RdYlGn)
+    axarr[1].set_title("Reward Estimations")
+
+
+    axarr[2].plot(range(birl.birl_iteration), policy_error, 'ro')
+    axarr[2].set_title('Policy change')
+    axarr[3].plot(range(birl.birl_iteration), reward_error, 'bo')
+    axarr[3].set_title('Reward change')
     plt.savefig(dirname + "/run" + str(i) + ".png")
 
 
@@ -65,18 +100,18 @@ def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
     """Run BIRL algorithm iteration_limit times.
     Pick the result with the highest posterior probability
     """
-    dirname = initialize_output_directory(birl)
+    directory_name = initialize_output_directory(birl)
     
     for i in range(number_of_iteration):
         pi, mdp, policy_error, reward_error = birl.run_birl()
-        plot_errors(policy_error, reward_error, dirname, birl, i)
+        plot_errors(policy_error, reward_error, directory_name, birl, i, expert_mdp, mdp)
         print("Run :" + str(i))
         print_reward_comparison(mdp, pi, expert_mdp, expert_trace)
         print_error_sum(mdp, birl, expert_mdp)
 
 
 def initialize_output_directory(birl):
-    dirname = "outputs/iter" +str(birl.birl_iteration) +"_no" + str(randint(0,2^30))
+    dirname = "outputs/iter" +str(birl.birl_iteration) +"_no" + str(randint(0,2**30))
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     return dirname
