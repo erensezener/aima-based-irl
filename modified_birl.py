@@ -14,22 +14,15 @@ Known bugs: -
 
 """
 
-from mdp import *
-from utils import *
-from copy import deepcopy
-from math import exp
+from birl import *
 
 
-class BIRL():
-    def __init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration=2000, step_size=2, r_min=-10, r_max=10):
-        self.n_rows, self.n_columns = grid_size
-        self.r_min, self.r_max = r_min, r_max
-        self.step_size = step_size
-        self.expert_trace = expert_trace
-        self.birl_iteration = birl_iteration
-        self.terminals = terminals
-        self.error_func = error_func
+class ModifiedBIRL(BIRL):
+    def __init__(self, expert_trace, grid_size, terminals, error_func):
+        BIRL.__init__(self, expert_trace, grid_size, terminals, error_func)
 
+
+    @property
     def run_birl(self):
         errors_per_iteration = []
         #This is the core BIRL algorithm
@@ -65,61 +58,21 @@ class BIRL():
             errors_per_iteration.append(self.error_func(mdp))
         return best_pi, best_mdp, errors_per_iteration
 
+    def state_relevance_function(self, s):
+        sum = 0
+        for sp in self.expert_trace:
+            sum += kernel(s, sp)
+        return sum / self.get_normalizing_constant()
 
-#------------- Reward functions ------------
-    #TODO move priors out of the mdp
-    def create_rewards(self, reward_function_to_call=None):
-        # If no reward function is specified, sets all rewards as 0
-        if reward_function_to_call is None:
-            return self.create_zero_rewards()
-        return reward_function_to_call()
+    def get_normalizing_constant(self):
+        return max([self.state_relevance_function(s) for s in self.expert_trace])
 
-    def create_zero_rewards(self):
-        return GridMDP([[0 for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-                       , terminals=deepcopy(self.terminals))
-
-    def create_random_rewards(self):
-        return GridMDP(
-            [[random.uniform(self.r_min, self.r_max) for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-            , terminals=deepcopy(self.terminals))
-
-    def create_gaussian_rewards(self):
-        mean, stdev = 0, self.r_max / 3
-        return GridMDP(
-            [[self.bound_rewards(random.gauss(mean, stdev)) for _ in range(self.n_columns)] for _ in range(self.n_rows)]
-            , terminals=deepcopy(self.terminals))
-
-    def bound_rewards(self, reward):
-        if reward > self.r_max:
-            reward = self.r_max
-        elif reward < self.r_min:
-            reward = self.r_min
-        return reward
-
-def calculate_posterior(mdp, q, expert_pi, gamma = 0.95):
-    z = []
-    e = 0
-    for s in mdp.states:
-        for a in mdp.actions(s):
-            z.append(gamma * q[s, a])
-        e += gamma * q[s, expert_pi[s]] - logsumexp(z)
-        del z[:] #Removes contents of Z
-    return e
+def kernel(s, sp, sigma = 0.01):
+    distance = (euclidean_distance(s, sp))**2
+    return math.exp((-distance**2)/2*(sigma**2))
 
 
-def get_q_values(mdp, U):
-    Q = {}
-    for s in mdp.states:
-        for a in mdp.actions(s):
-            for (p, sp) in mdp.T(s, a):
-                Q[s, a] = mdp.reward[s] + mdp.gamma * p * U[sp]
-    return Q
-
-
-def calculate_beta_prior(R, Rmax=10):
-    R = abs(R)
-    Rmax += 0.000001
-    return 1 / (((R / Rmax) ** 0.5) * ((1 - R / Rmax) ** 0.5))
-
-
-def uniform_prior(_): return 1
+def euclidean_distance(s, sp):
+    x0, y0 = s
+    x1, y1 = sp
+    return math.sqrt( abs(x0 - x1)**2 + abs(y0 - y1)**2 )

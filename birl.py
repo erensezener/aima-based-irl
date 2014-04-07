@@ -18,10 +18,10 @@ from mdp import *
 from utils import *
 from copy import deepcopy
 from math import exp
-
+import runner
 
 class BIRL():
-    def __init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration=2000, step_size=2, r_min=-10, r_max=10):
+    def __init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration=300, step_size=2, r_min=-10, r_max=10):
         self.n_rows, self.n_columns = grid_size
         self.r_min, self.r_max = r_min, r_max
         self.step_size = step_size
@@ -31,13 +31,12 @@ class BIRL():
         self.error_func = error_func
 
     def run_birl(self):
-        errors_per_iteration = []
+        policy_error, reward_error = [], []
         #This is the core BIRL algorithm
         mdp = self.create_rewards(self.create_rewards)
         pi, u = policy_iteration(mdp)
         q = get_q_values(mdp, u)
         posterior = calculate_posterior(mdp, q, self.expert_trace)
-        best_posterior, best_mdp, best_pi = NEGATIVE_SMALL_NUMBER, None, None
 
         for _ in range(self.birl_iteration):
             new_mdp = deepcopy(mdp)
@@ -59,11 +58,9 @@ class BIRL():
                 if probability(min(1, exp(new_posterior - posterior))):
                     mdp, posterior = deepcopy(new_mdp), new_posterior
 
-            if posterior > best_posterior:  # Pick the mdp with the best posterior
-                best_posterior, best_mdp, best_pi = posterior, deepcopy(mdp), pi
-
-            errors_per_iteration.append(self.error_func(mdp))
-        return best_pi, best_mdp, errors_per_iteration
+            policy_error.append(runner.get_policy_difference(pi, self.expert_trace))
+            reward_error.append(runner.normalize_by_max_reward(self.error_func(mdp), self))
+        return pi, mdp, policy_error, reward_error
 
 
 #------------- Reward functions ------------
@@ -96,7 +93,7 @@ class BIRL():
             reward = self.r_min
         return reward
 
-def calculate_posterior(mdp, q, expert_pi, gamma = 0.95):
+def calculate_posterior(mdp, q, expert_pi, gamma=0.95):
     z = []
     e = 0
     for s in mdp.states:

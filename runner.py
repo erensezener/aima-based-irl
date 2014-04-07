@@ -32,7 +32,7 @@ def main():
     #         [-3, -1, 0, 0, 0, 0, 0, 0, 0, 0],
     #         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
     #         terminals=[(9,4)])
-
+    #
     # expert_mdp = GridMDP([[0, 0, 0, 0, -1, -1, 0, 0, 0, 10],
     #                     [0, 0, 0, -3, -3, -3, -3, 0, 0, 0],
     #                     [0, 0, 0, -3, -5, -5, -3, 0, 0, 0],
@@ -47,45 +47,45 @@ def main():
     print_table(expert_mdp.to_arrows(expert_trace))
     print "---------------"
 
-    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum(), expert_mdp), 1000)
+    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum, expert_mdp), birl_iteration=1000)
     run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
-    plt.show()
+
+
+def plot_errors(policy_error, reward_error, dirname, birl, i):
+    _, axarr = plt.subplots(2, sharex=True)
+
+    axarr[0].plot(range(birl.birl_iteration), policy_error, 'ro')
+    axarr[0].set_title('Policy change')
+    axarr[1].plot(range(birl.birl_iteration), reward_error, 'bo')
+    axarr[1].set_title('Reward change')
+    plt.savefig(dirname + "/run" + str(i) + ".png")
+
 
 def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
     """Run BIRL algorithm iteration_limit times.
     Pick the result with the highest posterior probability
     """
-    max_policy_difference = BIG_NUMBER
-    best_pi, best_mdp = None, None
-
+    dirname = initialize_output_directory(birl)
+    
     for i in range(number_of_iteration):
-        pi, mdp, errors = birl.run_birl()
-        plt.subplot(5,2,i+1)
-        plt.plot(range(birl.birl_iteration), errors, 'ro')
-        plt.axes([0, birl.birl_iteration,0, 10])
-        plt.draw()
-        policy_difference = get_difference(pi, expert_trace)
+        pi, mdp, policy_error, reward_error = birl.run_birl()
+        plot_errors(policy_error, reward_error, dirname, birl, i)
         print("Run :" + str(i))
-
         print_reward_comparison(mdp, pi, expert_mdp, expert_trace)
         print_error_sum(mdp, birl, expert_mdp)
 
-        if policy_difference < max_policy_difference:
-            max_policy_difference = policy_difference
-            best_pi = pi
-            best_mdp = mdp
 
-    print "---------------"
-    print"Best results:"
-
-    print_reward_comparison(best_mdp, best_pi, expert_mdp, expert_trace)
-    print_error_sum(best_mdp, birl, expert_mdp)
+def initialize_output_directory(birl):
+    dirname = "outputs/iter" +str(birl.birl_iteration) +"_no" + str(randint(0,2^30))
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    return dirname
 
 def print_reward_comparison(mdp, pi, expert_mdp, expert_trace):
     print_table(mdp.to_arrows(pi))
     print "vs"
     print_table(mdp.to_arrows(expert_trace))
-    print("Policy difference is " + str(get_difference(pi, expert_trace)))
+    print("Policy difference is " + str(get_policy_difference(pi, expert_trace)))
     mdp.print_rewards()
     print "vs"
     expert_mdp.print_rewards()
@@ -128,7 +128,7 @@ def calculate_error_sum(mdp1, mdp2):
             sum += abs(mdp1.reward[x, y] - mdp2.reward[x, y])
     return sum / (float(mdp1.cols * mdp1.rows))
 
-def get_difference(new_pi, ex_pi):
+def get_policy_difference(new_pi, ex_pi):
     shared_items = set(new_pi.items()) & set(ex_pi.items())
     return len(new_pi.items()) - len(shared_items)
 
