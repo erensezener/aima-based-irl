@@ -16,6 +16,7 @@ from birl import *
 from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.gridspec as gridspec
 
 
 def main():
@@ -74,25 +75,34 @@ def main():
     print_table(expert_mdp.to_arrows(expert_trace))
     print "---------------"
 
-    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum, expert_mdp), birl_iteration=100)
+    birl = BIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals, partial(calculate_error_sum, expert_mdp), birl_iteration=1000)
     run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
 
 
 def plot_errors(policy_error, reward_error, dirname, birl, i, expert_mdp, mdp):
-    _, axarr = plt.subplots(4, sharex=True)
+    gs = gridspec.GridSpec(3, 2)
+    ax0 = plt.subplot(gs[0, :-1])
+    ax1 = plt.subplot(gs[0, -1])
+    ax2 = plt.subplot(gs[1, :])
+    ax3 = plt.subplot(gs[2, :])
+
     expert_data = np.array(expert_mdp.get_grid())
-    _ = axarr[0].pcolor(expert_data, cmap=plt.cm.RdYlGn)
-    axarr[0].set_title("Expert's Rewards")
+    ax0.pcolor(expert_data, cmap=plt.cm.RdYlGn)
+    ax0.set_title("Expert's Rewards")
+    ax0.invert_yaxis()
 
     data = np.array(mdp.get_grid())
-    _ = axarr[1].pcolor(data, cmap=plt.cm.RdYlGn)
-    axarr[1].set_title("Reward Estimations")
+    ax1.pcolor(data, cmap=plt.cm.RdYlGn)
+    ax1.set_title("Reward Estimations")
+    ax1.invert_yaxis()
 
 
-    axarr[2].plot(range(birl.birl_iteration), policy_error, 'ro')
-    axarr[2].set_title('Policy change')
-    axarr[3].plot(range(birl.birl_iteration), reward_error, 'bo')
-    axarr[3].set_title('Reward change')
+    ax2.plot(range(birl.birl_iteration), policy_error, 'ro')
+    ax2.set_title('Policy change')
+    ax3.plot(range(birl.birl_iteration), reward_error, 'bo')
+    ax3.set_title('Reward change')
+
+    plt.tight_layout()
     plt.savefig(dirname + "/run" + str(i) + ".png")
 
 
