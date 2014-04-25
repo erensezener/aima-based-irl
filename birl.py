@@ -20,8 +20,10 @@ from copy import deepcopy
 from math import exp
 import runner
 
+
 class BIRL():
-    def __init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration=300, step_size=2, r_min=-10, r_max=10):
+    def __init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration=300, step_size=2, r_min=-10,
+                 r_max=10):
         self.n_rows, self.n_columns = grid_size
         self.r_min, self.r_max = r_min, r_max
         self.step_size = step_size
@@ -33,7 +35,7 @@ class BIRL():
     def run_birl(self):
         policy_error, reward_error = [], []
         #This is the core BIRL algorithm
-        mdp = self.create_rewards(self.create_rewards)
+        mdp = self.create_rewards()
         pi, u = policy_iteration(mdp)
         q = get_q_values(mdp, u)
         posterior = calculate_posterior(mdp, q, self.expert_trace)
@@ -63,7 +65,7 @@ class BIRL():
         return pi, mdp, policy_error, reward_error
 
 
-#------------- Reward functions ------------
+    #------------- Reward functions ------------
     #TODO move priors out of the mdp
     def create_rewards(self, reward_function_to_call=None):
         # If no reward function is specified, sets all rewards as 0
@@ -93,6 +95,7 @@ class BIRL():
             reward = self.r_min
         return reward
 
+
 def calculate_posterior(mdp, q, expert_pi, gamma=0.95):
     z = []
     e = 0
@@ -100,8 +103,9 @@ def calculate_posterior(mdp, q, expert_pi, gamma=0.95):
         for a in mdp.actions(s):
             z.append(gamma * q[s, a])
         e += gamma * q[s, expert_pi[s]] - logsumexp(z)
-        del z[:] #Removes contents of Z
-    return e
+        del z[:]  #Removes contents of Z
+    return e * calculate_prior(mdp.reward.values())
+    # return e
 
 
 def get_q_values(mdp, U):
@@ -113,10 +117,21 @@ def get_q_values(mdp, U):
     return Q
 
 
+def calculate_prior(rewards):
+    return sum([calculate_tri_prior(R) for R in rewards]) / 10
+    # return 1
+
 def calculate_beta_prior(R, Rmax=10):
-    R = abs(R)
+    R = abs(R) + 0.00001
     Rmax += 0.000001
     return 1 / (((R / Rmax) ** 0.5) * ((1 - R / Rmax) ** 0.5))
+
+
+def calculate_tri_prior(R, Rmax= 10):
+    R = abs(R) + 0.00001
+    Rmax += 0.000001
+    Rmin = -Rmax
+    return 0.4 * exp(-0.1 * (R - Rmax) ** 2) + 0.4 * exp(-0.1 * (R - Rmin) ** 2) + exp(-0.1 * R ** 2)
 
 
 def uniform_prior(_): return 1

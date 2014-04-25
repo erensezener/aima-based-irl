@@ -87,11 +87,7 @@ class GridMDP(MDP):
     def modify_rewards_randomly(self, step=0.05):
         x_to_change = randint(0, self.cols - 1)
         y_to_change = randint(0, self.rows - 1)
-        direction = randint(0, 1) * 2 - 1
-        # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" before "+ str(self.reward[x_to_change, y_to_change]))
-        if (self.r_min < self.reward[x_to_change, y_to_change] + direction * step < self.r_max):
-            self.reward[x_to_change, y_to_change] += direction * step
-            # print("Changing " + str(x_to_change) + " " + str(y_to_change) +" after "+ str(self.reward[x_to_change, y_to_change]))
+        self.modify_state((x_to_change,y_to_change), step)
 
     def get_max_reward(self): return max(self.reward.values())
 
@@ -145,6 +141,12 @@ class GridMDP(MDP):
         chars = {(1, 0): '>', (0, 1): '^', (-1, 0): '<', (0, -1): 'v', None: '.'}
         return self.to_grid(dict([(s, chars[a]) for (s, a) in policy.items()]))
 
+
+    def modify_state(self, indices, step):
+        y_to_change, x_to_change = indices
+        direction = randint(0, 1) * 2 - 1
+        if self.r_min < self.reward[x_to_change, y_to_change] + direction * step < self.r_max:
+            self.reward[x_to_change, y_to_change] += direction * step
 
 #______________________________________________________________________________
 
