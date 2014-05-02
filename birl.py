@@ -102,7 +102,8 @@ def calculate_posterior(mdp, q, expert_pi, gamma=0.95):
     for s in mdp.states:
         for a in mdp.actions(s):
             z.append(gamma * q[s, a])
-        e += gamma * q[s, expert_pi[s]] - logsumexp(z)
+        if s in expert_pi:
+            e += gamma * q[s, expert_pi[s]] - logsumexp(z)
         del z[:]  #Removes contents of Z
     return e * calculate_prior(mdp.reward.values())
     # return e

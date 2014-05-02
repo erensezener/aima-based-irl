@@ -22,8 +22,8 @@ def cooling_function(i):
 
 
 def pick_random_state(mdp):
-    m,n = mdp.get_grid_size()
-    return random.randint(0, m-1), random.randint(0, n-1)
+    m, n = mdp.get_grid_size()
+    return random.randint(0, m - 1), random.randint(0, n - 1)
 
 
 class ModifiedBIRL(BIRL):
@@ -31,7 +31,6 @@ class ModifiedBIRL(BIRL):
         BIRL.__init__(self, expert_trace, grid_size, terminals, error_func, birl_iteration, step_size)
 
 
-    @property
     def run_birl(self):
         policy_error, reward_error = [], []
         #This is the core BIRL algorithm
@@ -76,7 +75,7 @@ class ModifiedBIRL(BIRL):
 
     def get_normalizing_constant(self, s, mdp):
         # return max([self.state_relevance_function(s) for s in self.expert_trace])
-        return sum ([kernel(s, sp) for sp in mdp.reward.keys()])
+        return sum([kernel(s, sp) for sp in mdp.reward.keys()])
 
 
 def kernel(s, sp, sigma=0.01):

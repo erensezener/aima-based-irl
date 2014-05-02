@@ -85,8 +85,12 @@ def main():
     print_table(expert_mdp.to_arrows(expert_trace))
     print "---------------"
 
+    expert_trace.pop((0,1))
+    expert_trace.pop((0,2))
+    expert_trace.pop((0,3))
+
     birl = ModifiedBIRL(expert_trace, expert_mdp.get_grid_size(), expert_mdp.terminals,
-                partial(calculate_error_sum, expert_mdp), birl_iteration=1000, step_size=1.0)
+                partial(calculate_error_sum, expert_mdp), birl_iteration=2, step_size=1.0)
     run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iterations)
 
 
@@ -122,7 +126,7 @@ def run_multiple_birl(birl, expert_mdp, expert_trace, number_of_iteration):
     directory_name = initialize_output_directory(birl)
 
     for i in range(number_of_iteration):
-        pi, mdp, policy_error, reward_error = birl.run_birl
+        pi, mdp, policy_error, reward_error = birl.run_birl()
         plot_errors(policy_error, reward_error, directory_name, birl, i, expert_mdp, mdp)
         print("Run :" + str(i))
         print_reward_comparison(mdp, pi, expert_mdp, expert_trace)
